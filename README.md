@@ -54,35 +54,58 @@
 
 <span class="mark">现版本已支持从脚本猫页面在线安装，在本文的“下载”部分点击前往脚本猫页面按引导安装即可。</span>
 
-安卓手机端可前往应用商店安装Edge浏览器，进入脚本猫链接页面按提示安装即可。
+电脑端Edge浏览器直接前往脚本猫页面按引导安装即可。
+
+安卓/鸿蒙手机端、安卓/鸿蒙平板，可前往应用商店安装Edge浏览器(鸿蒙需要卓易通)，进入脚本猫链接页面按提示安装即可。
 
 <img src="docs/images/installation/media/image3.png" style="width:4.43333in;height:0.96342in" alt="" />
 
-iOS、iPadOS的Edge浏览器尚不兼容脚本猫，可以前往App Store下载“Gear 浏览器”。详情请看iOS、iPadOS教程。
+手机端如果遇到“请在微信中打开”，则需要更改为“查看桌面网站”模式，具体往下滑到“手机/平板教程”部分的使用说明。
 
-<img src="docs/images/installation/media/Gear-Icon.png" style="width:4.43333in;height:0.96342in" alt="" />
+<span class="mark">iOS、iPadOS的Edge浏览器尚不兼容脚本猫，可以前往App Store下载“Gear 浏览器”。详情请看iOS、iPadOS教程。</span>
 
-一、iOS、iPadOS教程
 
-该部分教程由 @CaiJQ 提供测试援助。该教程为在线下载教程，无本地导入方法，请自行探究。
+**一、iOS、iPadOS教程**
+
+该部分教程由 @随身玩伴小Q 提供iOS环境测试援助。该教程为在线下载教程，无本地导入方法，其他方案请自行探究。
 
 由于iOS、iPadOS的Edge浏览器尚不兼容脚本猫，需要前往App Store下载“Gear 浏览器”。
 
-<img src="docs/images/installation/media/Gear-Icon.png" style="width:4.43333in;height:0.96342in" alt="" />
-
 第一步，前往App Store下载“Gear 浏览器”。
 
+<img src="docs/images/installation/media/Gear-Icon.png" style="width:4.43333in;height:0.96342in" alt="" />
+
+
 第二步，复制本文的“下载”部分脚本猫页面链接，在Gear 浏览器中打开，按提示安装脚本。
+| <img src="docs/images/installation/media/Gear-ScriptCat.png" style="width:1.78996in;height:3.93701in" /> | <img src="docs/images/installation/media/Gear-Install.png" style="width:1.78996in;height:3.93701in" /> |
+|----|----|
 
-第三步，前往[华夏学工系统](https://me.hxxy.edu.cn/)并完成登录，可能会提示“请在微信中打开”。解决方案：保持该页面不动，在搜索栏左侧点击锁形图标，从网站设置中更改用户代理，并切换桌面和移动内容模式。
+如果遇到全是代码的页面，直接关掉就行。
+现在就安装完毕了。
 
-登录完毕之后，你可以再次切换回手机页面方便使用。
+| <img src="docs/images/installation/media/Gear-CodeScreen.png" style="width:1.78996in;height:3.93701in" /> | <img src="docs/images/installation/media/Gear-Panel.png" style="width:1.78996in;height:3.93701in" /> |
+|----|----|
 
-**
+
+第三步，前往[华夏学工系统](https://me.hxxy.edu.cn/)并完成登录，可能会提示“请在微信中打开”（iPadOS可直接使用，无需切换UA）。
+
+解决方案：保持该页面不动，在搜索栏左侧点击锁形图标，从网站设置中更改用户代理，并切换桌面和移动内容模式。
+| <img src="docs/images/installation/media/Gear-ChangeUA.png" style="width:1.78996in;height:3.93701in" /> | <img src="docs/images/installation/media/Gear-ChangeUA2.png" style="width:1.78996in;height:3.93701in" /> |
+|----|----|
+
+选择iPad或其他桌面端UA
+
+登录完毕之后，你可以再次切换回移动页面方便使用。
+
+| <img src="docs/images/installation/media/Gear-ChangeUA3.png" style="width:1.78996in;height:3.93701in" /> | <img src="docs/images/installation/media/Gear-changetomobile.png" style="width:1.78996in;height:3.93701in" /> |
+|----|----|
+
+
+------------------------------------------------------------------------
 
 <span class="mark">以下教程是纯本地导入教程，无特殊需求不需要使用，请直接前往本文的“下载”部分点击前往脚本猫页面按引导在线安装即可。</span>
 
-**一、手机(平板)教程**
+**一、安卓/鸿蒙手机(平板)教程**
 
 本章节教程适用于安卓/鸿蒙系统的手机、平板。
 
@@ -248,4 +271,4 @@ iOS、iPadOS的Edge浏览器尚不兼容脚本猫，可以前往App Store下载�
 
 感谢以下人员对项目的支持：
 
-- iOS 端兼容性测试：CaiJQ
+- iOS 端兼容性测试：@随身玩伴小Q
