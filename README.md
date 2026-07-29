@@ -4,8 +4,8 @@
 
 ## 下载
 
-- **脚本猫**：https://scriptcat.org/zh-CN/script-show-page/7226
-- **仓库**：[Github](https://github.com/FairyXH/HXXY_Script)
+- **脚本猫**：[https://scriptcat.org/zh-CN/script-show-page/7226](https://scriptcat.org/zh-CN/script-show-page/7226)
+- **代码仓库**：[Github](https://github.com/FairyXH/HXXY_Script)
 
 ## 功能介绍
 
@@ -34,14 +34,6 @@
 - **Cookie 复制**：复制当前页面中 JavaScript 可读取的 Cookie；`HttpOnly` Cookie 不可读取。
 - **配置持久化**：脚本设置、自定义规则、已保存 API 和受数量限制的 API 日志会保存在用户脚本管理器中。
 
-## 适用范围
-
-- `https://me.hxxy.edu.cn/*`
-- `https://plat.hxxy.edu.cn/*`
-- `https://*.hxxy.edu.cn/*`
-
-脚本需要用户先正常登录对应系统，并使用当前浏览器会话执行操作。涉及提交、签到、销假、审核等写操作时，请在发送前核对页面账号、接口参数和当前记录。
-
 ## 基本使用
 
 1. 按下方教程安装脚本猫并导入 [`main.user.js`](./main.user.js)。
@@ -51,14 +43,11 @@
 
 ## 安装教程
 
-脚本猫界面无法展示教程图片，请前往[Github](https://github.com/FairyXH/HXXY_Script)查看。
-
+**脚本猫界面无法展示教程图片，请前往[Github](https://github.com/FairyXH/HXXY_Script)查看。**
 
 **华夏系统增强脚本使用教程(By Zhang)**
 
-<span class="mark">现版本已支持从脚本猫页面在线安装，在本文的“下载”部分点击前往脚本猫页面按引导安装即可。</span>
-
-电脑端Edge浏览器直接前往脚本猫页面按引导安装即可。
+<span class="mark">现版本已支持从脚本猫页面在线安装，在本文的“下载”部分点击前往脚本猫页面按引导安装即可。电脑端Edge浏览器直接前往脚本猫页面按引导安装即可。</span>
 
 安卓/鸿蒙手机端、安卓/鸿蒙平板，可前往应用商店安装Edge浏览器(鸿蒙需要卓易通)，进入脚本猫链接页面按提示安装即可。
 
@@ -122,7 +111,6 @@
 | <img src="docs/images/installation/media/image4.png" style="width:1.78996in;height:3.93701in" /> | <img src="docs/images/installation/media/image5.png" style="width:1.78996in;height:3.93701in" /> |
 |----|----|
 
-**\**
 
 **（二）浏览器插件的安装**
 
