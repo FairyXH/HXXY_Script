@@ -5,6 +5,7 @@
 ## 下载
 
 - **脚本猫**：https://scriptcat.org/zh-CN/script-show-page/7226
+- **仓库**：[Github](https://github.com/FairyXH/HXXY_Script)
 
 ## 功能介绍
 
@@ -49,6 +50,9 @@
 4. 普通功能位于“工具箱”；请求日志、API 调试、重写规则和开关项可从面板顶部直接进入。
 
 ## 安装教程
+
+脚本猫界面无法展示教程图片，请前往[Github](https://github.com/FairyXH/HXXY_Script)查看。
+
 
 **华夏系统增强脚本使用教程(By Zhang)**
 
