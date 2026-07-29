@@ -48,9 +48,25 @@
 3. 页面右侧出现“华夏”悬浮按钮后，点击按钮打开增强工具面板。
 4. 普通功能位于“工具箱”；请求日志、API 调试、重写规则和开关项可从面板顶部直接进入。
 
-## 完整安装教程
+## 本地导入安装教程
 
 **华夏系统增强脚本使用教程(By Zhang)**
+
+<span class="mark">现版本已支持从脚本猫社区直接下载，下面的教程是本地导入教程。</span>
+
+手机端可前往应用商店安装Edge浏览器。
+
+<img src="docs/images/installation/media/image3.png" style="width:4.43333in;height:0.96342in" alt="" />
+
+iOS、iPadOS的Edge浏览器尚不兼容脚本猫，可以前往App Store下载“Gear 浏览器”。(*CaiJQ)
+
+<img src="docs/images/installation/media/Gear-Icon.png" style="width:4.43333in;height:0.96342in" alt="" />
+
+iOS、iPadOS用户请往下滑前往查看专属教程
+
+<span class="mark">平板同样适用本章节教程</span>
+
+[脚本猫页面](https://scriptcat.org/zh-CN/script-show-page/7226)
 
 **一、脚本简介**
 
@@ -72,11 +88,7 @@
 
 **三、手机(平板)教程**
 
-本章节教程适用于手机，可前往应用商店安装Edge浏览器。
-
-<span class="mark">平板同样适用本章节教程</span>
-
-<img src="docs/images/installation/media/image3.png" style="width:4.43333in;height:0.96342in" alt="文本 AI 生成的内容可能不正确。" />
+本章节教程适用于手机，
 
 **（一）保存脚本文件**
 
@@ -233,3 +245,9 @@
 现在你可以前往 学工系统(链接：https://me.hxxy.edu.cn) 使用脚本了。
 
 <img src="docs/images/installation/media/image34.png" style="width:4.18333in;height:2.05389in" alt="图形用户界面, 应用程序, Teams AI 生成的内容可能不正确。" />
+
+## 鸣谢
+
+感谢以下人员对项目的支持：
+
+- iOS 端兼容性测试：CaiJQ
