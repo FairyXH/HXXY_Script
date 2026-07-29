@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         华夏系统增强工具
 // @namespace    hxxy-enhancer
-// @version      5.6.4
+// @version      5.6.6
 // @description  华夏系统增强工具
 // @author     	 Zhang
 // @license    	 MIT
@@ -20,7 +20,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '5.6.4';
+  const VERSION = '5.6.6';
   const STORAGE_KEY = 'hxxy-enhancer-config-v3';
   const LOG_STORAGE_KEY = 'hxxy-enhancer-api-logs-v1';
   const EVENT_CONFIG = 'hxxy-enhancer-config';

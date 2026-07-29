@@ -128,14 +128,14 @@
 
 第一步、打开Edge浏览器，点击右下角的菜单，然后点击“扩展”
 
-| <img src="docs/images/installation/media/image6.png" style="width:1.61096in;height:3.54331in" alt="图表 AI 生成的内容可能不正确。" /> | <img src="docs/images/installation/media/image7.png" style="width:1.61096in;height:3.54331in" /> |
+| <img src="docs/images/installation/media/image6.png" style="width:1.61096in;height:3.54331in" alt="" /> | <img src="docs/images/installation/media/image7.png" style="width:1.61096in;height:3.54331in" /> |
 |----|----|
 
 ------------------------------------------------------------------------
 
 第二步、找到“脚本猫”并点击获取，勾选允许并点击“添加”
 
-| <img src="docs/images/installation/media/image8.png" style="width:1.61096in;height:3.54331in" alt="图形用户界面, 应用程序 AI 生成的内容可能不正确。" /> | <img src="docs/images/installation/media/image9.png" style="width:1.61096in;height:3.54331in" /> |
+| <img src="docs/images/installation/media/image8.png" style="width:1.61096in;height:3.54331in" alt="" /> | <img src="docs/images/installation/media/image9.png" style="width:1.61096in;height:3.54331in" /> |
 |----|----|
 
 ------------------------------------------------------------------------
@@ -213,7 +213,7 @@
 
 或直接进入插件网址：https://microsoftedge.microsoft.com/addons/detail/%E8%84%9A%E6%9C%AC%E7%8C%AB/liilgpjgabokdklappibcjfablkpcekh
 
-<img src="docs/images/installation/media/image23.png" style="width:5.11811in;height:2.54673in" alt="图形用户界面, 文本, 应用程序, Teams AI 生成的内容可能不正确。" />
+<img src="docs/images/installation/media/image23.png" style="width:5.11811in;height:2.54673in" alt="" />
 
 ------------------------------------------------------------------------
 
@@ -221,15 +221,15 @@
 
 稍等片刻，在弹出窗中点击“添加扩展”
 
-<img src="docs/images/installation/media/image24.png" style="width:5.11811in;height:2.57138in" alt="图形用户界面, 应用程序 AI 生成的内容可能不正确。" />
+<img src="docs/images/installation/media/image24.png" style="width:5.11811in;height:2.57138in" alt="" />
 
-<img src="docs/images/installation/media/image25.png" style="width:3.93701in;height:2.43302in" alt="文本, 应用程序 AI 生成的内容可能不正确。" />
+<img src="docs/images/installation/media/image25.png" style="width:3.93701in;height:2.43302in" alt="" />
 
 ------------------------------------------------------------------------
 
 第五步、在菜单中点击“扩展”，然后点击“管理扩展”
 
-<img src="docs/images/installation/media/image26.png" style="width:4.72441in;height:6.02012in" alt="图形用户界面, 应用程序 AI 生成的内容可能不正确。" />
+<img src="docs/images/installation/media/image26.png" style="width:4.72441in;height:6.02012in" alt="" />
 
 ------------------------------------------------------------------------
 
@@ -269,7 +269,7 @@
 
 现在你可以前往 学工系统(链接：https://me.hxxy.edu.cn) 使用脚本了。
 
-<img src="docs/images/installation/media/image34.png" style="width:4.18333in;height:2.05389in" alt="图形用户界面, 应用程序, Teams AI 生成的内容可能不正确。" />
+<img src="docs/images/installation/media/image34.png" style="width:4.18333in;height:2.05389in" alt="" />
 
 ## 鸣谢
 
