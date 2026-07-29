@@ -72,9 +72,9 @@
 
 **三、手机(平板)教程**
 
-本章节教程适用于安卓、苹果手机，可前往应用商店安装Edge浏览器。
+本章节教程适用于手机，可前往应用商店安装Edge浏览器。
 
-<span class="mark">安卓平板、iPad同样适用本章节教程</span>
+<span class="mark">平板同样适用本章节教程</span>
 
 <img src="docs/images/installation/media/image3.png" style="width:4.43333in;height:0.96342in" alt="文本 AI 生成的内容可能不正确。" />
 
