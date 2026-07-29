@@ -48,47 +48,45 @@
 3. 页面右侧出现“华夏”悬浮按钮后，点击按钮打开增强工具面板。
 4. 普通功能位于“工具箱”；请求日志、API 调试、重写规则和开关项可从面板顶部直接进入。
 
-## 本地导入安装教程
+## 安装教程
 
 **华夏系统增强脚本使用教程(By Zhang)**
 
-<span class="mark">现版本已支持从脚本猫社区直接下载，下面的教程是本地导入教程。</span>
+<span class="mark">现版本已支持从脚本猫页面在线安装，在本文的“下载”部分点击前往脚本猫页面按引导安装即可。</span>
 
-手机端可前往应用商店安装Edge浏览器。
+安卓手机端可前往应用商店安装Edge浏览器，进入脚本猫链接页面按提示安装即可。
 
 <img src="docs/images/installation/media/image3.png" style="width:4.43333in;height:0.96342in" alt="" />
 
-iOS、iPadOS的Edge浏览器尚不兼容脚本猫，可以前往App Store下载“Gear 浏览器”。(*CaiJQ)
+iOS、iPadOS的Edge浏览器尚不兼容脚本猫，可以前往App Store下载“Gear 浏览器”。详情请看iOS、iPadOS教程。
 
 <img src="docs/images/installation/media/Gear-Icon.png" style="width:4.43333in;height:0.96342in" alt="" />
 
-iOS、iPadOS用户请往下滑前往查看专属教程
+一、iOS、iPadOS教程
 
-<span class="mark">平板同样适用本章节教程</span>
+该部分教程由 @CaiJQ 提供测试援助。该教程为在线下载教程，无本地导入方法，请自行探究。
 
-[脚本猫页面](https://scriptcat.org/zh-CN/script-show-page/7226)
+由于iOS、iPadOS的Edge浏览器尚不兼容脚本猫，需要前往App Store下载“Gear 浏览器”。
 
-**一、脚本简介**
+<img src="docs/images/installation/media/Gear-Icon.png" style="width:4.43333in;height:0.96342in" alt="" />
 
-这是一款增强学工系统功能的脚本猫浏览器插件的脚本，支持在浏览器环境下一键执行销假、学生活动报名签到签退、晚寝签到、假期登记离校到达返校等操作，为学工系统的使用提供强力辅助。
+第一步，前往App Store下载“Gear 浏览器”。
 
-也可为专业用户提供API调试、请求重写等高级功能。
+第二步，复制本文的“下载”部分脚本猫页面链接，在Gear 浏览器中打开，按提示安装脚本。
 
-<img src="docs/images/installation/media/image1.png" style="width:3.18736in;height:3.93701in" alt="图形用户界面, 文本, 应用程序 AI 生成的内容可能不正确。" />
+第三步，前往[华夏学工系统](https://me.hxxy.edu.cn/)并完成登录，可能会提示“请在微信中打开”。解决方案：保持该页面不动，在搜索栏左侧点击锁形图标，从网站设置中更改用户代理，并切换桌面和移动内容模式。
 
-**二、运行环境**
+登录完毕之后，你可以再次切换回手机页面方便使用。
 
-本脚本需要支持运行脚本猫、油猴脚本插件的浏览器环境。本教程面向零基础人群，以Microsoft Edge浏览器为例，从安装脚本管理器开始教学。
+**
 
-<img src="docs/images/installation/media/image2.png" style="width:1.82516in;height:0.55005in" alt="形状 AI 生成的内容可能不正确。" />
+<span class="mark">以下教程是纯本地导入教程，无特殊需求不需要使用，请直接前往本文的“下载”部分点击前往脚本猫页面按引导在线安装即可。</span>
 
-本教程的安装教程分为电脑部分和手机(平板)部分。Windows、Mac、Linux请查看电脑教程，安卓和苹果请查看手机(平板)教程。
+**一、手机(平板)教程**
 
-**<span class="mark">如果您是专业用户，把脚本导入脚本猫即可，本教程对您可能无帮助</span>**
+本章节教程适用于安卓/鸿蒙系统的手机、平板。
 
-**三、手机(平板)教程**
-
-本章节教程适用于手机，
+鸿蒙系统需要使用卓易通安装Edge浏览器，后续步骤与安卓一致。
 
 **（一）保存脚本文件**
 
@@ -162,7 +160,7 @@ iOS、iPadOS用户请往下滑前往查看专属教程
 | <img src="docs/images/installation/media/image19.png" style="width:1.61096in;height:3.54331in" /> | <img src="docs/images/installation/media/image20.png" style="width:1.61096in;height:3.5431in" /> |
 |----|----|
 
-**四、电脑教程**
+**二、电脑教程**
 
 以Windows操作系统为例，MacOS、Linux同理。
 
@@ -172,7 +170,7 @@ iOS、iPadOS用户请往下滑前往查看专属教程
 
 第一步、打开Microsoft Edge浏览器
 
-<img src="docs/images/installation/media/image21.png" style="width:0.70839in;height:1.00009in" alt="徽标, 公司名称 AI 生成的内容可能不正确。" />
+<img src="docs/images/installation/media/image21.png" style="width:0.70839in;height:1.00009in" alt="" />
 
 ------------------------------------------------------------------------
 
@@ -180,7 +178,7 @@ iOS、iPadOS用户请往下滑前往查看专属教程
 
 或直接进入网址：https://scriptcat.org/zh-CN
 
-<img src="docs/images/installation/media/image22.png" style="width:3.48333in;height:3.64941in" alt="图形用户界面, 文本, 应用程序, 电子邮件 AI 生成的内容可能不正确。" />
+<img src="docs/images/installation/media/image22.png" style="width:3.48333in;height:3.64941in" alt="" />
 
 ------------------------------------------------------------------------
 
@@ -212,9 +210,9 @@ iOS、iPadOS用户请往下滑前往查看专属教程
 
 勾选“允许用户脚本”
 
-<img src="docs/images/installation/media/image27.png" style="width:5.76806in;height:2.60208in" alt="图形用户界面, 文本, 应用程序, 电子邮件 AI 生成的内容可能不正确。" />
+<img src="docs/images/installation/media/image27.png" style="width:5.76806in;height:2.60208in" alt="" />
 
-<img src="docs/images/installation/media/image28.png" style="width:5.76806in;height:2.86111in" alt="图形用户界面, 文本, 应用程序, 电子邮件 AI 生成的内容可能不正确。" />
+<img src="docs/images/installation/media/image28.png" style="width:5.76806in;height:2.86111in" alt="" />
 
 ------------------------------------------------------------------------
 
