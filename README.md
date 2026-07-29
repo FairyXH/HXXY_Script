@@ -36,8 +36,8 @@
 
 ## 基本使用
 
-1. 按下方教程安装脚本猫并导入 [`main.user.js`](./main.user.js)。
-2. 登录[华夏学工系统](https://me.hxxy.edu.cn/)。
+1. 按下方教程安装脚本。
+2. 登录[华夏学工系统(链接：https://me.hxxy.edu.cn/)](https://me.hxxy.edu.cn/) 。
 3. 页面右侧出现“华夏”悬浮按钮后，点击按钮打开增强工具面板。
 4. 普通功能位于“工具箱”；请求日志、API 调试、重写规则和开关项可从面板顶部直接进入。
 
@@ -80,7 +80,7 @@
 |----|----|
 
 
-第三步，前往学工系统(链接：https://me.hxxy.edu.cn)并完成登录，可能会提示“请在微信中打开”（iPadOS可直接使用，无需切换UA）。
+第三步，前往学工系统[华夏学工系统(链接：https://me.hxxy.edu.cn/)](https://me.hxxy.edu.cn/) 并完成登录，可能会提示“请在微信中打开”（iPadOS可直接使用，无需切换UA）。
 
 解决方案：保持该页面不动，在搜索栏左侧点击锁形图标，从网站设置中更改用户代理，并切换桌面和移动内容模式。
 | <img src="docs/images/installation/media/Gear-ChangeUA.png" style="width:1.78996in;height:3.93701in" /> | <img src="docs/images/installation/media/Gear-ChangeUA2.png" style="width:1.78996in;height:3.93701in" /> |
@@ -170,7 +170,7 @@
 
 **（四）使用说明**
 
-现在你可以前往 学工系统(链接：https://me.hxxy.edu.cn) 使用脚本了。<span class="mark">移动端特别注意：你可能需要在菜单里点击“查看桌面网站”才能访问</span>，登录完毕之后，你可以再次点击菜单里的“手机网站”切换回手机页面方便使用。
+现在你可以前往 [华夏学工系统(链接：https://me.hxxy.edu.cn/)](https://me.hxxy.edu.cn/) 使用脚本了。<span class="mark">移动端特别注意：你可能需要在菜单里点击“查看桌面网站”才能访问</span>，登录完毕之后，你可以再次点击菜单里的“手机网站”切换回手机页面方便使用。
 
 | <img src="docs/images/installation/media/image19.png" style="width:1.61096in;height:3.54331in" /> | <img src="docs/images/installation/media/image20.png" style="width:1.61096in;height:3.5431in" /> |
 |----|----|
@@ -255,7 +255,7 @@
 
 ------------------------------------------------------------------------
 
-现在你可以前往 学工系统(链接：https://me.hxxy.edu.cn) 使用脚本了。
+现在你可以前往 [华夏学工系统(链接：https://me.hxxy.edu.cn/)](https://me.hxxy.edu.cn/) 使用脚本了。
 
 <img src="docs/images/installation/media/image34.png" style="width:4.18333in;height:2.05389in" alt="" />
 
