@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         华夏系统增强工具
 // @namespace    hxxy-enhancer
-// @version      5.6.3
+// @version      5.6.4
 // @description  华夏系统增强工具
 // @author     	 Zhang
 // @license    	 MIT
@@ -20,7 +20,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '5.6.3';
+  const VERSION = '5.6.4';
   const STORAGE_KEY = 'hxxy-enhancer-config-v3';
   const LOG_STORAGE_KEY = 'hxxy-enhancer-api-logs-v1';
   const EVENT_CONFIG = 'hxxy-enhancer-config';
@@ -30,6 +30,21 @@
   const WATCHDOG_STORAGE_KEY = 'hxxy-enhancer-watchdog-v1';
   const WATCHDOG_TIMEOUT_MS = 3000;
   const TARGET_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0';
+  // Capture the real userscript environment before the optional page UA lock runs.
+  const RUNTIME_ENVIRONMENT = (() => {
+    const userAgent = navigator.userAgent || '';
+    const platform = navigator.platform || '';
+    const maxTouchPoints = Number(navigator.maxTouchPoints) || 0;
+    const isIOS = /iPad|iPhone|iPod/i.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
+    return Object.freeze({
+      userAgent,
+      platform,
+      vendor: navigator.vendor || '',
+      language: navigator.language || '',
+      maxTouchPoints,
+      isIOS
+    });
+  })();
   const fieldsMap = {
     ClassCodes: '',
     counselorClzz: '0',
@@ -1894,6 +1909,7 @@
           statusText: response && response.statusText ? response.statusText : '',
           duration: Math.round(performance.now() - start),
           text: response && response.responseText != null ? String(response.responseText) : '',
+          responseHeaders: response && response.responseHeaders ? String(response.responseHeaders) : '',
           ...(error ? {
             error
           } : {})
@@ -1917,6 +1933,165 @@
         finish(null, String(error));
       }
     });
+  }
+
+  function inspectDiagnosticResponse(response) {
+    const text = response && response.text != null ? String(response.text) : '';
+    const trimmed = text.trim();
+    const headers = response && response.responseHeaders ? String(response.responseHeaders) : '';
+    const contentTypeMatch = headers.match(/^content-type\s*:\s*([^\r\n]+)/im);
+    const contentType = contentTypeMatch ? contentTypeMatch[1].trim() : '';
+    const htmlByHeader = /(?:text\/html|application\/xhtml\+xml)/i.test(contentType);
+    const htmlByMarkup = /^\s*(?:<!--[\s\S]{0,300}?-->\s*)?(?:<!doctype\s+html|<(?:html|head|body|form|script|meta|title|div)\b)/i.test(text);
+    const isHtml = htmlByHeader || htmlByMarkup;
+    const loginPage = isHtml && /(?:登录|登陆|统一身份认证|login|sign[ -]?in|password)/i.test(text.slice(0, 5000));
+    const errorPage = isHtml && ((response && response.status >= 400) || /(?:错误|异常|无权限|拒绝访问|error|exception|access denied|forbidden|not found)/i.test(text.slice(0, 5000)));
+    let isJson = false;
+    let jsonError = '';
+    if (trimmed && !isHtml) {
+      try {
+        JSON.parse(trimmed);
+        isJson = true;
+      } catch (error) {
+        jsonError = error && error.message ? error.message : String(error);
+      }
+    }
+    const statusOk = !!response && response.status >= 200 && response.status < 300;
+    const transportError = response && response.error ? String(response.error) : '';
+    let reason = '';
+    if (transportError) reason = transportError;
+    else if (!statusOk) reason = `HTTP状态异常：${response ? response.status : 0}`;
+    else if (isHtml) reason = loginPage ? '返回HTML登录页，当前请求未携带有效登录状态' : (errorPage ? '返回HTML错误页' : '返回HTML页面');
+    else if (!isJson) reason = trimmed ? `返回内容不是有效JSON${jsonError ? `：${jsonError}` : ''}` : '响应内容为空，不是有效JSON';
+    return {
+      valid: !transportError && statusOk && isJson && !isHtml,
+      status: response ? response.status : 0,
+      statusText: response && response.statusText ? response.statusText : '',
+      duration: response && response.duration != null ? response.duration : 0,
+      contentType,
+      isJson,
+      isHtml,
+      loginPage,
+      errorPage,
+      reason,
+      preview: text.slice(0, 500)
+    };
+  }
+
+  async function requestWithFetchCurrentIdentity(options) {
+    const start = performance.now();
+    const timeoutMs = 20000;
+    let requestUrl;
+    try {
+      requestUrl = new URL(String(options.url || ''), window.location.href).href;
+    } catch (error) {
+      return { ok: false, status: 0, statusText: '', duration: 0, text: '', responseHeaders: '', error: 'URL格式无效' };
+    }
+    const method = String(options.method || 'GET').toUpperCase();
+    let body;
+    if (options.body != null) {
+      if (typeof options.body === 'string') body = options.body;
+      else if (options.body instanceof URLSearchParams) body = options.body.toString();
+      else body = JSON.stringify(options.body);
+    }
+    try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+      let response;
+      try {
+        response = await fetch(requestUrl, {
+          method,
+          headers: Object.assign({}, options.headers || {}),
+          body: method === 'GET' || method === 'HEAD' ? undefined : body,
+          credentials: 'include',
+          cache: 'no-store',
+          ...(controller ? { signal: controller.signal } : {})
+        });
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+      const text = await response.text();
+      const responseHeaders = Array.from(response.headers.entries()).map(([key, value]) => `${key}: ${value}`).join('\n');
+      return {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText || '',
+        duration: Math.round(performance.now() - start),
+        text,
+        responseHeaders
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        status: 0,
+        statusText: '',
+        duration: Math.round(performance.now() - start),
+        text: '',
+        responseHeaders: '',
+        error: error && error.name === 'AbortError'
+          ? `fetch请求超时（${timeoutMs}ms）`
+          : (error && error.message ? error.message : String(error))
+      };
+    }
+  }
+
+  async function runIOSRequestDiagnostic(options) {
+    const attempts = [];
+    const gmTimeoutMs = 20000;
+    const gmResponse = await Promise.race([
+      requestWithCurrentIdentity(Object.assign({}, options, { withCredentials: true })),
+      new Promise(resolve => setTimeout(() => resolve({
+        ok: false,
+        status: 0,
+        statusText: '',
+        duration: gmTimeoutMs,
+        text: '',
+        responseHeaders: '',
+        error: `GM_xmlhttpRequest未在${gmTimeoutMs}ms内返回`
+      }), gmTimeoutMs))
+    ]);
+    const gmInspection = inspectDiagnosticResponse(gmResponse);
+    attempts.push({ transport: 'GM_xmlhttpRequest (withCredentials)', response: gmResponse, inspection: gmInspection });
+    if (gmInspection.valid) return { success: true, fallbackUsed: false, attempts };
+
+    const fetchResponse = await requestWithFetchCurrentIdentity(options);
+    const fetchInspection = inspectDiagnosticResponse(fetchResponse);
+    attempts.push({ transport: 'fetch (credentials: include)', response: fetchResponse, inspection: fetchInspection });
+    return { success: fetchInspection.valid, fallbackUsed: true, attempts };
+  }
+
+  function formatIOSDiagnosticReport(result, options) {
+    const environment = [
+      `脚本版本：${VERSION}`,
+      `当前地址：${window.location.href}`,
+      `User-Agent：${RUNTIME_ENVIRONMENT.userAgent}`,
+      `Platform：${RUNTIME_ENVIRONMENT.platform || '(空)'}`,
+      `Vendor：${RUNTIME_ENVIRONMENT.vendor || '(空)'}`,
+      `Language：${RUNTIME_ENVIRONMENT.language || '(空)'}`,
+      `MaxTouchPoints：${RUNTIME_ENVIRONMENT.maxTouchPoints}`,
+      `是否iOS：${RUNTIME_ENVIRONMENT.isIOS ? '是' : '否'}`,
+      `测试请求：${options.method} ${new URL(options.url, window.location.href).href}`
+    ];
+    const attempts = result.attempts.map((attempt, index) => {
+      const item = attempt.inspection;
+      return [
+        `\n方案 ${index === 0 ? 'A' : 'B'}：${attempt.transport}`,
+        `HTTP状态：${item.status} ${item.statusText || ''}`.trimEnd(),
+        `耗时：${item.duration}ms`,
+        `Content-Type：${item.contentType || '(未提供)'}`,
+        `是否JSON：${item.isJson ? '是' : '否'}`,
+        `是否HTML：${item.isHtml ? '是' : '否'}`,
+        `HTML登录页：${item.loginPage ? '是' : '否'}`,
+        `HTML错误页：${item.errorPage ? '是' : '否'}`,
+        `校验结果：${item.valid ? '通过' : `失败 - ${item.reason || '未知原因'}`}`,
+        '返回内容前500字符：',
+        item.preview || '(空响应)'
+      ].join('\n');
+    });
+    const outcome = result.success
+      ? `\n最终结果：成功，使用 ${result.attempts[result.attempts.length - 1].transport}`
+      : `\n最终结果：失败，GM_xmlhttpRequest 与 fetch 均未返回有效JSON；请保留本报告用于定位 Cookie、CORS 或登录状态问题。`;
+    return environment.concat(attempts, outcome).join('\n');
   }
 
   function renderInternalPage(container, title, url, back, fallback) {
@@ -2430,7 +2605,10 @@
   }
 
   function renderSettings(container) {
-    container.innerHTML = `<h4>设置</h4><label><input id="domEnabled" type="checkbox" ${config.domPatchEnabled ? 'checked' : ''}> 启用字段修补</label><label><input id="apiEnabled" type="checkbox" ${config.apiEnabled ? 'checked' : ''}> 启用API规则</label><label><input id="logEnabled" type="checkbox" ${config.logEnabled ? 'checked' : ''}> 记录API日志</label><label><input id="uaEnabled" type="checkbox" ${config.uaEnabled ? 'checked' : ''}> 锁定页面UA</label><label>最多保留日志条数<input id="maxLogs" type="number" min="20" max="1000" value="${config.maxLogs}"></label><button id="saveSettings">保存设置</button>`;
+    const defaultTestUrl = window.location.origin + (window.location.hostname === 'plat.hxxy.edu.cn'
+      ? '/QY/CheckMyApp'
+      : '/studentwork/LessonActivityMobile/VerifyCurUserRole');
+    container.innerHTML = `<h4>设置</h4><label><input id="domEnabled" type="checkbox" ${config.domPatchEnabled ? 'checked' : ''}> 启用字段修补</label><label><input id="apiEnabled" type="checkbox" ${config.apiEnabled ? 'checked' : ''}> 启用API规则</label><label><input id="logEnabled" type="checkbox" ${config.logEnabled ? 'checked' : ''}> 记录API日志</label><label><input id="uaEnabled" type="checkbox" ${config.uaEnabled ? 'checked' : ''}> 锁定页面UA</label><label>最多保留日志条数<input id="maxLogs" type="number" min="20" max="1000" value="${config.maxLogs}"></label><button id="saveSettings">保存设置</button><div class="editor ios-request-test"><h4>iOS 请求测试</h4><label>请求方式<select id="iosTestMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></label><label>接口地址<input id="iosTestUrl" value="${esc(defaultTestUrl)}" placeholder="输入返回JSON的接口"></label><label>请求头（JSON）<textarea id="iosTestHeaders" rows="3">{}</textarea></label><label>请求数据<textarea id="iosTestBody" rows="4" placeholder="GET数据会附加到查询参数"></textarea></label><button id="runIosRequestTest">开始测试</button><pre id="iosRequestTestResult">环境：${RUNTIME_ENVIRONMENT.isIOS ? 'iOS' : '非 iOS'}\n等待测试</pre></div>`;
     container.querySelector('#saveSettings').onclick = () => {
       config.domPatchEnabled = container.querySelector('#domEnabled').checked;
       config.apiEnabled = container.querySelector('#apiEnabled').checked;
@@ -2443,6 +2621,45 @@
       emitConfig();
       renderPanel();
       alertInPanel(container, '设置已保存，API Hook开关刷新页面后完整生效');
+    };
+    container.querySelector('#runIosRequestTest').onclick = async event => {
+      const resultNode = container.querySelector('#iosRequestTestResult');
+      const button = event.currentTarget;
+      const method = container.querySelector('#iosTestMethod').value.toUpperCase();
+      const rawUrl = container.querySelector('#iosTestUrl').value.trim();
+      const rawHeaders = container.querySelector('#iosTestHeaders').value;
+      const rawBody = container.querySelector('#iosTestBody').value;
+      if (!rawUrl) {
+        resultNode.textContent = '请输入接口地址';
+        return;
+      }
+      const headers = parseHeaders(rawHeaders);
+      if (!headers || Array.isArray(headers) || typeof headers !== 'object') {
+        resultNode.textContent = '请求头不是有效的JSON对象';
+        return;
+      }
+      const normalized = normalizeBody(rawBody, headers);
+      const options = { method, url: rawUrl, headers: normalized.headers };
+      if (rawBody && method === 'GET') {
+        try {
+          options.url = appendQueryToUrl(rawUrl, normalized.body);
+        } catch (error) {
+          resultNode.textContent = `GET参数转换失败：${error.message}`;
+          return;
+        }
+      } else if (rawBody) {
+        options.body = normalized.body;
+      }
+      button.disabled = true;
+      resultNode.textContent = `正在执行方案 A：GM_xmlhttpRequest (withCredentials)...\n${method} ${options.url}`;
+      try {
+        const diagnostic = await runIOSRequestDiagnostic(options);
+        resultNode.textContent = formatIOSDiagnosticReport(diagnostic, options);
+      } catch (error) {
+        resultNode.textContent = `测试过程异常：${error && error.message ? error.message : String(error)}`;
+      } finally {
+        button.disabled = false;
+      }
     };
   }
 
