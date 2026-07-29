@@ -80,7 +80,7 @@
 |----|----|
 
 
-第三步，前往[华夏学工系统](https://me.hxxy.edu.cn/)并完成登录，可能会提示“请在微信中打开”（iPadOS可直接使用，无需切换UA）。
+第三步，前往学工系统(链接：https://me.hxxy.edu.cn)并完成登录，可能会提示“请在微信中打开”（iPadOS可直接使用，无需切换UA）。
 
 解决方案：保持该页面不动，在搜索栏左侧点击锁形图标，从网站设置中更改用户代理，并切换桌面和移动内容模式。
 | <img src="docs/images/installation/media/Gear-ChangeUA.png" style="width:1.78996in;height:3.93701in" /> | <img src="docs/images/installation/media/Gear-ChangeUA2.png" style="width:1.78996in;height:3.93701in" /> |
