@@ -7,6 +7,12 @@
 - **脚本猫**：[https://scriptcat.org/zh-CN/script-show-page/7226](https://scriptcat.org/zh-CN/script-show-page/7226)
 - **代码仓库**：[Github](https://github.com/FairyXH/HXXY_Script)
 
+##有Root？有Lsposed？
+
+- 对于已经Root且装有Lsposed框架(API 101以上)的安卓用户，可以尝试我们的企业微信用户脚本加载器。
+- 采用Xposed注入技术，直接在企业微信中加载辅助脚本，使用更方便。
+- 参考项目：[WeWorkJSLoader](https://github.com/FairyXH/WeWorkJSLoader)
+
 ## 功能介绍
 
 ### 学工系统快捷工具
