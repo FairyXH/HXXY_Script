@@ -16,10 +16,8 @@
 // @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
-
 (function () {
   'use strict';
-
   const VERSION = '5.8.0';
   const STORAGE_KEY = 'hxxy-enhancer-config-v3';
   const LOG_STORAGE_KEY = 'hxxy-enhancer-api-logs-v1';
@@ -51,7 +49,6 @@
     classcode: '0',
     College: '0'
   };
-
   // ScriptCat may evaluate overlapping @match entries as separate instances.
   // Keep one owner per top window and let a stale owner expire naturally.
   const topWindow = window.top || window;
@@ -63,7 +60,6 @@
       topWindow[INSTANCE_LOCK] = { owner: Math.random().toString(36).slice(2), startedAt: nowMs() };
     } catch (e) {}
   }
-
   const defaultRules = [
     {
       id: 'builtin-check-info-activity',
@@ -106,7 +102,6 @@
       response: { lineEnabled: false, headersEnabled: false, bodyEnabled: true, body: 'true' }
     }
   ];
-
   function normalizeRule(rule) {
     if (!rule || typeof rule !== 'object') return null;
     if (rule.mode) {
@@ -159,9 +154,7 @@
       autoStartOnLoad: false
     }
   };
-
   const clone = value => JSON.parse(JSON.stringify(value));
-
   function loadConfig() {
     let saved = {};
     try {
@@ -223,7 +216,6 @@
   let logs = loadPersistedLogs();
   const seenLogEntries = new WeakSet();
   const recentLogKeys = new Map();
-
   function saveConfig() {
     try {
       GM_setValue(STORAGE_KEY, config);
@@ -231,7 +223,6 @@
       console.warn('[Zhang华夏系统增强] 配置保存失败', e);
     }
   }
-
   function emitConfig() {
     const detail = {
       config: clone(config)
@@ -252,11 +243,9 @@
     };
     broadcast(document);
   }
-
   function localLog(level, ...args) {
     (console[level] || console.log).call(console, '[Zhang华夏系统增强]', ...args);
   }
-
   function addLog(entry) {
     if (!config.logEnabled || !entry) return;
     if (typeof entry === 'object') {
@@ -275,9 +264,7 @@
     logs = logs.slice(0, Math.max(20, Number(config.maxLogs) || 200));
     persistLogs();
   }
-
   const patchedFields = new WeakMap();
-
   function patchField(el, fieldId, targetValue) {
     if (!el || !('value' in el) || el.value === targetValue) return;
     let patched = patchedFields.get(el);
@@ -286,7 +273,6 @@
       patchedFields.set(el, patched);
     }
     if (patched.get(fieldId) === targetValue) return;
-
     // Mark before dispatching events because page handlers can synchronously restore the value.
     patched.set(fieldId, targetValue);
     el.value = targetValue;
@@ -301,7 +287,6 @@
     } catch (e) {}
     localLog('log', `字段 ${fieldId} 已修改为 "${targetValue}"`);
   }
-
   function patchDocument(doc, root = doc) {
     if (!config.domPatchEnabled || !doc || !root) return;
     for (const [fieldId, targetValue] of Object.entries(fieldsMap)) {
@@ -318,9 +303,7 @@
       nodes.forEach(el => patchField(el, fieldId, targetValue));
     }
   }
-
   const observedDocs = new WeakSet();
-
   function injectUserAgentIntoDocument(doc) {
     if (!config.uaEnabled || !doc) return;
     const win = doc.defaultView;
@@ -371,7 +354,6 @@
     parent.appendChild(script);
     script.remove();
   }
-
   function injectPageHookIntoDocument(doc) {
     if (!config.hookEnabled || !config.apiEnabled || !doc) return;
     const win = doc.defaultView;
@@ -383,7 +365,6 @@
     parent.appendChild(script);
     script.remove();
   }
-
   function bridgeFrameEvents(doc) {
     const win = doc && doc.defaultView;
     if (!win || win === window || win.__HX_ENHANCER_EVENT_BRIDGE__) return;
@@ -394,7 +375,6 @@
       }));
     });
   }
-
   function observeDocument(doc) {
     if (!doc || observedDocs.has(doc)) return;
     observedDocs.add(doc);
@@ -422,7 +402,6 @@
     }
     doc.querySelectorAll('iframe').forEach(bindFrame);
   }
-
   function bindFrame(frame) {
     if (!frame || frame.__HX_ENHANCER_BOUND__) return;
     frame.__HX_ENHANCER_BOUND__ = true;
@@ -434,7 +413,6 @@
     frame.addEventListener('load', load);
     load();
   }
-
   function startWatchdog() {
     if (window.top !== window.self) return;
     let recoveryScheduled = false;
@@ -459,7 +437,6 @@
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', recover, { once: true });
       else setTimeout(recover, 0);
     };
-
     const workerSource = `setInterval(() => postMessage({ type: 'heartbeat', sentAt: Date.now() }), 500);`;
     try {
       const blob = new Blob([workerSource], { type: 'text/javascript' });
@@ -475,7 +452,6 @@
     } catch (e) {
       localLog('warn', 'Worker看门狗启动失败，使用主线程长任务监测', e);
     }
-
     if (typeof PerformanceObserver !== 'undefined') {
       try {
         const observer = new PerformanceObserver(list => list.getEntries().forEach(entry => {
@@ -492,7 +468,6 @@
     };
     setTimeout(heartbeat, 500);
   }
-
   function startDomPatch() {
     const start = () => {
       if (!document.documentElement) return false;
@@ -512,7 +487,6 @@
       once: true
     });
   }
-
   function pageHookSource(initialConfig) {
     return `(${function (EVENT_CONFIG, EVENT_LOG, EVENT_STATE, initialConfig) {
             'use strict';
@@ -542,7 +516,6 @@
                     });
                 } catch (e) {}
             }
-
             const now = () => performance && performance.now ? performance.now() : Date.now();
             const getUrl = input => typeof input === 'string' ? input : (input && input.url ? input.url : String(input || ''));
             function matches(rule, url) {
@@ -810,7 +783,6 @@
             window.dispatchEvent(new CustomEvent(EVENT_STATE, { detail: { hooked: true } }));
         }.toString()})(${JSON.stringify(EVENT_CONFIG)}, ${JSON.stringify(EVENT_LOG)}, ${JSON.stringify(EVENT_STATE)}, ${JSON.stringify(initialConfig)});`;
   }
-
   function formatResponse(text) {
     if (!text) return '';
     try {
@@ -819,7 +791,6 @@
       return text;
     }
   }
-
   function parseHeaders(text) {
     try {
       return JSON.parse(text || '{}');
@@ -827,11 +798,9 @@
       return null;
     }
   }
-
   function detectBodyType(body) {
     return /(^|&)\w+=[^&]*/.test(body) && !/^\s*[\[{]/.test(body);
   }
-
   function parseRawBody(body) {
     const params = new URLSearchParams();
     body.split('&').forEach(part => {
@@ -843,7 +812,6 @@
     });
     return params;
   }
-
   function normalizeBody(body, headers) {
     if (!body) return {
       body: '',
@@ -860,7 +828,6 @@
       headers: nextHeaders
     };
   }
-
   function esc(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
       '&': '&amp;',
@@ -870,19 +837,16 @@
       "'": '&#39;'
     } [ch]));
   }
-
   function setInput(container, id, value) {
     const el = container.querySelector('#' + id);
     if (el) el.value = value == null ? '' : value;
   }
-
   const pythonApiCatalog = [
     {name:'请假记录', method:'POST', path:'/studentwork/VApply/GetVList', body:{page:1,rows:1000,askLeaveStatus:-10}},
     {name:'提交销假', method:'POST', path:'/studentwork/VApply/SubmitSignin', body:{id:'',address:''}, write:true},
     {name:'晚寝活动列表', method:'POST', path:'/studentwork/PunchMStudent/GetActivityList', body:{page:1,size:1000}},
     {name:'返校确认', method:'POST', path:'/studentwork/vHStudent/SubmitSignin', body:{id:'',address:'',longitudeGaoDe:'',latitudeGaoDe:''}, write:true},
   ];
-
   function renderPythonApiCatalog(container, context) {
     const domainFor = item => item.domain === 'plat' ? 'https://plat.hxxy.edu.cn' : 'https://me.hxxy.edu.cn';
     container.innerHTML = `<div class="tool-head"><button class="secondary tool-back">返回工具箱</button><h4>移植接口目录</h4></div><label>接口<select id="pythonApiSelect"></select></label><div id="pythonApiNote"></div><label>接口<input id="pythonApiUrl"></label><label>类型<select id="pythonApiMethod"><option>GET</option><option>POST</option></select></label><label>数据<textarea id="pythonApiBody" rows="8"></textarea></label><div class="actions"><button id="pythonApiSend">发送请求</button><button class="secondary" id="pythonApiSave">保存为API</button></div><pre id="pythonApiResult">请选择接口</pre>`;
@@ -938,7 +902,6 @@
       container.querySelector('#pythonApiResult').textContent = '已保存到 API调试。';
     };
   }
-
   // 工具箱注册表：新增工具时只需增加一个 { id, name, description, render } 项。
   // render(container, context) 可自行创建独立界面；context 统一提供 request、showResult 与 back。
   const toolboxTools = [
@@ -1066,9 +1029,7 @@
       description: '获取活动列表，查看详情、报名状态和活动提醒。',
       render(container, context) {
         container.innerHTML = `<div class="tool-head"><button class="secondary tool-back">返回工具箱</button><h4>学生活动</h4></div><div class="actions"><button id="refreshActivity">刷新活动</button></div><div id="activityResult">等待查询</div>`;
-
         container.querySelector('.tool-back').onclick = context.back;
-
         const style = document.createElement('style');
         style.textContent = `
           .act-list{display:flex;flex-direction:column;gap:8px;font-size:12px}
@@ -1081,9 +1042,7 @@
           .operation-result{min-height:18px;margin-top:7px;color:#334155;white-space:pre-wrap;word-break:break-word}
         `;
         container.appendChild(style);
-
         const result = container.querySelector('#activityResult');
-
         async function getActivityList() {
           const response = await context.request({
             method: 'POST',
@@ -1110,15 +1069,12 @@
               sord: 'asc'
             }).toString()
           });
-
           return JSON.parse(response.text).data || [];
         }
-
         function setActivityResult(activity, message) {
           const resultBox = container.querySelector(`#act-result-${activity.id}`);
           if (resultBox) resultBox.textContent = message;
         }
-
         function renderActivityQrFallback(activity) {
           let refreshTimer = null;
           let requestSerial = 0;
@@ -1169,7 +1125,6 @@
           loadQrCode();
           refreshTimer = window.setInterval(loadQrCode, 5000);
         }
-
         function openActivityQrCode(activity) {
           context.openInternalPage(
             '活动二维码',
@@ -1177,10 +1132,8 @@
             () => renderActivityQrFallback(activity)
           );
         }
-
         async function applyActivity(activity) {
           setActivityResult(activity, '正在报名...');
-
           try {
             const response = await context.request({
               method: 'POST',
@@ -1194,35 +1147,27 @@
                 ActivityId: activity.id,
               }).toString()
             });
-
             const json = JSON.parse(response.text);
-
             if (json.code === 0) {
               setActivityResult(activity, `报名成功：${activity.activityname}`);
             } else {
               setActivityResult(activity, `报名失败：${json.msg || '未知错误'}`);
             }
-
           } catch (e) {
             setActivityResult(activity, `报名异常：${e.message}`);
           }
         }
-
         async function cancelActivity(activity) {
           const resultBox = container.querySelector(`#act-result-${activity.id}`);
-
           if (resultBox) {
             resultBox.textContent = '正在取消报名...';
           }
-
           try {
             const response = await context.request({
               method: 'GET',
               url: 'https://plat.hxxy.edu.cn/studentwork/LessonActivityMobile/CancelRegistration?activityId=' + activity.id
             });
-
             const json = JSON.parse(response.text);
-
             if (json.isok) {
               if (resultBox) {
                 resultBox.textContent = '取消报名成功';
@@ -1232,14 +1177,12 @@
                 resultBox.textContent = '取消失败：' + (json.msg || '未知错误');
               }
             }
-
           } catch (e) {
             if (resultBox) {
               resultBox.textContent = '请求异常：' + e.message;
             }
           }
         }
-
         async function signInActivity(activity) {
           setActivityResult(activity, '正在签到...');
           try {
@@ -1263,7 +1206,6 @@
             setActivityResult(activity, `签到异常：${e.message}`);
           }
         }
-
         async function signOutActivity(activity) {
           setActivityResult(activity, '正在签退...');
           try {
@@ -1287,7 +1229,6 @@
             setActivityResult(activity, `签退异常：${e.message}`);
           }
         }
-
         // 抢报：按次数/间隔循环发送报名包（间隔 0 为全速并发）
         function renderGrabPage(activity) {
           const grab = {
@@ -1320,7 +1261,6 @@
           const logEl = container.querySelector('#grabLog');
           const startBtn = container.querySelector('#grabStart');
           const stopBtn = container.querySelector('#grabStop');
-
           const style = document.createElement('style');
           style.textContent = `
             .grab-title{font-size:14px;font-weight:600;color:#0f172a;margin-top:8px}
@@ -1330,7 +1270,6 @@
             .grab-log{margin-top:8px;max-height:220px;overflow:auto;font-size:11px}
           `;
           container.appendChild(style);
-
           const update = () => {
             statusEl.textContent = (grab.running ? '状态：抢报中' : (grab.sent > 0 ? '状态：已停止' : '状态：未开始'))
               + `\n已发送：${grab.sent}  成功：${grab.success}  失败：${grab.fail}`;
@@ -1339,12 +1278,10 @@
             startBtn.disabled = grab.running;
             stopBtn.disabled = !grab.running;
           };
-
           const grabLog = text => {
             grab.logs.push(`${new Date().toLocaleTimeString()} ${text}`);
             update();
           };
-
           const sendApply = async () => {
             const response = await context.request({
               method: 'POST',
@@ -1364,9 +1301,7 @@
             }
             return json;
           };
-
           const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
           async function run() {
             const times = Number(container.querySelector('#grabTimes').value) || -1;
             const interval = Math.max(0, Number(container.querySelector('#grabInterval').value) || 0);
@@ -1426,7 +1361,6 @@
               update();
             }
           }
-
           startBtn.onclick = run;
           stopBtn.onclick = () => {
             grab.running = false;
@@ -1434,7 +1368,6 @@
           };
           update();
         }
-
         function getActivityStatus(activity) {
           return {
             status: activity.activitystartstate,
@@ -1442,162 +1375,116 @@
             signout: activity.issignout
           };
         }
-
         function remindActivity(activity) {
           const start = new Date(activity.begindate);
           const end = new Date(activity.enddate);
           const now = new Date();
-
           const diffStart = start - now;
           const diffEnd = end - now;
-
           if (diffStart > 0 && diffStart < 30 * 60 * 1000) {
             console.log('活动即将开始:', activity.activityname);
           }
-
           if (diffEnd > 0 && diffEnd < 30 * 60 * 1000) {
             console.log('活动即将结束:', activity.activityname);
           }
         }
-
         async function load() {
-
           result.textContent = '正在加载...';
-
           try {
-
             const data = await getActivityList();
-
             if (!data.length) {
               result.textContent = '暂无活动';
               return;
             }
-
             let html = '<div class="act-list">';
-
             data.slice(0, 30).forEach((item, index) => {
-
               const status = getActivityStatus(item);
-
               html += `
                     <div class="act-card">
-
                     <div class="act-title">
                     ${item.activityname || ''}
                     </div>
-
                     <div class="act-info">
-
                     <div>ID:
                     <span class="act-id">${item.id}</span>
                     </div>
-
                     <div>
                     时间:
                     ${item.begindate || ''}
                     ~
                     ${item.enddate || ''}
                     </div>
-
                     <div>
                     地点:
                     ${item.schoolviewstr || ''}
                     </div>
-
                     <div>
                     类型:
                     ${item.projecttypename || ''}
                     </div>
-
                     <div>
                     负责人:
                     ${item.activityresponsiblepersonname || ''}
                     </div>
-
                     <div>
                     指导老师:
                     ${item.guidanceteachername || ''}
                     </div>
-
                     <div>
                     报名:
                     ${item.registrationdatestr || ''}
                     </div>
-
                     <div>
                     状态:
                     ${status.status || ''}
                     </div>
-
                     </div>
-
-
                     <div class="act-btn">
-
                     <button class="qr-btn">二维码</button>
-
                     <button class="apply-btn">
                     报名
                     </button>
-
                     <button class="grab-btn">
                     抢报
                     </button>
-
                     <button class="cancel-btn">取消报名</button>
-
                     <button class="signin-btn">
                     签到
                     </button>
-
                     <button class="signout-btn">
                     签退
                     </button>
-
                     </div>
                     <div class="act-result operation-result" id="act-result-${item.id}"></div>
-
                     </div>
                     `;
             });
-
             html += '</div>';
-
             result.innerHTML = html;
-
             container.querySelectorAll('.qr-btn').forEach((b, i) => {
               b.onclick = () => openActivityQrCode(data[i]);
             });
-
             container.querySelectorAll('.apply-btn').forEach((b, i) => {
               b.onclick = () => applyActivity(data[i]);
             });
-
             container.querySelectorAll('.grab-btn').forEach((b, i) => {
               b.onclick = () => renderGrabPage(data[i]);
             });
-
             container.querySelectorAll('.cancel-btn').forEach((b, i) => {
               b.onclick = () => cancelActivity(data[i]);
             });
-
             container.querySelectorAll('.signin-btn').forEach((b, i) => {
               b.onclick = () => signInActivity(data[i]);
             });
-
             container.querySelectorAll('.signout-btn').forEach((b, i) => {
               b.onclick = () => signOutActivity(data[i]);
             });
-
             data.forEach(remindActivity);
-
           } catch (e) {
             result.textContent = '加载失败:' + e.message;
           }
         }
-
         container.querySelector('#refreshActivity').onclick = load;
-
         load();
       }
     },
@@ -1609,7 +1496,6 @@
       render(container, context) {
         container.innerHTML = `<div class="tool-head"><button class="secondary tool-back">返回工具箱</button><h4>假期登记</h4></div><div class="actions"><button id="refreshHolidayList">刷新活动</button></div><div id="holidayResult">等待查询</div>`;
         container.querySelector('.tool-back').onclick = context.back;
-
         const style = document.createElement('style');
         style.textContent = `
           .holiday-list{display:flex;flex-direction:column;gap:8px;font-size:12px}
@@ -1621,11 +1507,9 @@
           .holiday-result{min-height:18px;margin-top:7px;color:#334155;white-space:pre-wrap;word-break:break-word}
         `;
         container.appendChild(style);
-
         const result = container.querySelector('#holidayResult');
         const formHeaders = {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'};
         const apiBase = 'https://me.hxxy.edu.cn/studentwork';
-
         function parseApiResponse(response) {
           if (response.error) throw new Error(response.error);
           if (!response.ok) throw new Error(`HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`);
@@ -1635,16 +1519,13 @@
             throw new Error('接口返回的不是有效 JSON');
           }
         }
-
         function apiMessage(json) {
           if (!json || typeof json !== 'object') return '未知返回';
           return String(json.msg || json.message || json.Message || (json.isok ? '操作成功' : '操作失败'));
         }
-
         function apiSucceeded(json) {
           return Boolean(json && (json.isok === true || json.code === 0));
         }
-
         function getCurrentLocation() {
           return Promise.resolve({
             address: '厦门华夏',
@@ -1653,7 +1534,6 @@
             note: ''
           });
         }
-
         async function getDetailIds(activityId) {
           const response = await context.request({
             method: 'GET',
@@ -1674,7 +1554,6 @@
           if (!ids.length) throw new Error('详情页中未找到离校/到达登记 ID，可能尚未填写假期去向');
           return ids;
         }
-
         async function postForm(path, data) {
           const response = await context.request({
             method: 'POST',
@@ -1684,7 +1563,6 @@
           });
           return parseApiResponse(response);
         }
-
         async function runDetailAction(activity, action) {
           const ids = await getDetailIds(activity.id);
           const location = action === 'arrive' ? await getCurrentLocation() : null;
@@ -1704,7 +1582,6 @@
           if (location && location.note) lines.push(location.note);
           return lines.join('\n');
         }
-
         async function runBackAction(activity) {
           const location = await getCurrentLocation();
           const json = await postForm('/vHStudent/SubmitSignin', {
@@ -1715,14 +1592,12 @@
           });
           return `${apiSucceeded(json) ? '成功' : '失败'} - ${apiMessage(json)}${location.note ? `\n${location.note}` : ''}`;
         }
-
         function appendMeta(parent, label, value) {
           if (value == null || value === '') return;
           const line = document.createElement('div');
           line.textContent = `${label}：${value}`;
           parent.appendChild(line);
         }
-
         function createActionButton(label, activity, resultBox, runner) {
           const button = document.createElement('button');
           button.textContent = label;
@@ -1742,7 +1617,6 @@
           };
           return button;
         }
-
         function renderActivities(activities) {
           result.innerHTML = '';
           if (!activities.length) {
@@ -1777,7 +1651,6 @@
           });
           result.appendChild(list);
         }
-
         async function load() {
           result.textContent = '正在查询假期登记活动...';
           try {
@@ -1793,7 +1666,6 @@
             result.textContent = `加载失败：${error.message}`;
           }
         }
-
         container.querySelector('#refreshHolidayList').onclick = load;
         load();
       }
@@ -1804,24 +1676,18 @@
       name: '(学工系统)晚寝签到',
       description: '查看晚寝考勤活动列表。',
       render(container, context) {
-
         container.innerHTML = `
                     <div class="tool-head">
                         <button class="secondary tool-back">返回工具箱</button>
                         <h4>晚寝考勤</h4>
                     </div>
-
                     <div class="actions">
                         <button id="refreshPunchM">刷新列表</button>
                     </div>
-
                     <div id="punchMResult">等待查询</div>
                 `;
-
         container.querySelector('.tool-back').onclick = context.back;
-
         const style = document.createElement('style');
-
         style.textContent = `
           .punch-list{display:flex;flex-direction:column;gap:8px;font-size:12px}
           .punch-card{border:1px solid #cbd5e1;border-radius:9px;padding:10px;background:#f8fafc}
@@ -1832,20 +1698,14 @@
           .punch-result{min-height:18px;margin-top:7px;color:#334155;white-space:pre-wrap;word-break:break-word}
         `;
         container.appendChild(style);
-
         const result = container.querySelector('#punchMResult');
-
         async function getPunchList() {
-
           const urls = [
             'https://plat.hxxy.edu.cn/studentwork/PunchMStudent/GetActivityList',
             'https://plat.hxxy.edu.cn/studentwork/PunchMTeacher/_TableList'
           ];
-
           for (const url of urls) {
-
             try {
-
               const response = await context.request({
                 method: 'POST',
                 url: url,
@@ -1857,34 +1717,22 @@
                   size: '1000'
                 }).toString()
               });
-
               const json = JSON.parse(response.text);
-
               if (json.isok !== false) {
-
                 return json.data || [];
-
               }
-
             } catch (e) {
-
             }
-
           }
-
           throw new Error('晚寝活动列表获取失败');
-
         }
-
         function setPunchResult(activity, message) {
           const resultBox = container.querySelector(`#punch-result-${activity.id}`);
           if (resultBox) resultBox.textContent = message;
         }
-
         function openPunchQrCode(activity) {
           context.openInternalPage('晚寝二维码', 'https://plat.hxxy.edu.cn/studentwork/PunchMStudent/QrcodeTrends?id=' + encodeURIComponent(activity.id));
         }
-
         async function punchSign(activity) {
           setPunchResult(activity, '正在签到...');
           try {
@@ -1907,140 +1755,89 @@
           } catch (e) {
             setPunchResult(activity, `签到异常：${e.message}`);
           }
-
         }
-
         function getPunchStatus(activity) {
-
           return activity.status || '未知';
-
         }
-
         function remindPunch(activity) {
-
           // TODO 晚寝时间提醒
-
         }
-
         async function load() {
-
           result.textContent = '正在加载...';
-
           try {
-
             const data = await getPunchList();
-
             if (!data.length) {
-
               result.textContent = '暂无晚寝考勤活动';
-
               return;
-
             }
-
             let html = '<div class="punch-list">';
-
             data.forEach((item, index) => {
-
               html += `
     <div class="punch-card">
-
         <div class="punch-title">
             ${item.name ?? ''}
         </div>
-
         <div class="punch-info">
-
             <div>
                 ID：
                 ${item.id ?? ''}
             </div>
-
             <div>
                 类型：
                 ${item.sigintypeview ?? ''}
             </div>
-
             <div>
                 时间：
                 ${item.sigindaytimestr ?? ''}
             </div>
-
             <div>
                 周期：
                 ${item.foreachp_cyclestr ?? ''}
             </div>
-
             <div>
                 有效期：
                 ${item.foreachp_startday ?? ''}
                 ~
                 ${item.foreachp_endday ?? ''}
             </div>
-
             <div>
                 状态：
                 ${item.foreachp_daysttstr ?? ''}
             </div>
-
             <div>
                 级别：
                 ${item.activitylevelview ?? ''}
             </div>
-
         </div>
-
         <div class="punch-btn">
-
             <button class="punch-detail">
                 二维码
             </button>
-
             <button class="punch-sign">
                 签到
             </button>
-
         </div>
-
         <div class="punch-result operation-result" id="punch-result-${item.id}"></div>
-
     </div>
     `;
-
             });
-
             html += '</div>';
-
             result.innerHTML = html;
-
             container.querySelectorAll('.punch-detail')
               .forEach((btn, i) => {
-
                 btn.onclick = () => openPunchQrCode(data[i]);
-
               });
-
             container.querySelectorAll('.punch-sign')
               .forEach((btn, i) => {
-
                 btn.onclick = () => punchSign(data[i]);
-
               });
-
             data.forEach(remindPunch);
-
           } catch (e) {
-
             result.textContent = '加载失败：' + e.message;
-
           }
-
         }
-
         container.querySelector('#refreshPunchM').onclick = load;
-
         load();
-
       }
     },
 	//WebVPN改名
@@ -2054,38 +1851,29 @@
                 <button class="secondary tool-back">返回工具箱</button>
                 <h4>修改WebVPN用户名</h4>
             </div>
-
             <label>
                 姓名
                 <input id="webvpnFullName" placeholder="请输入姓名">
             </label>
-
             <label>
                 昵称
                 <input id="webvpnNickname" placeholder="请输入昵称">
             </label>
-
             <div class="actions">
                 <button id="submitWebvpnChangeName">修改用户名</button>
             </div>
-
             <pre id="webvpnChangeResult">等待提交</pre>
         `;
-
         container.querySelector('.tool-back').onclick = context.back;
-
         container.querySelector('#submitWebvpnChangeName').onclick = async () => {
             const fullName = container.querySelector('#webvpnFullName').value.trim();
             const nickname = container.querySelector('#webvpnNickname').value.trim();
             const result = container.querySelector('#webvpnChangeResult');
-
             if (!fullName || !nickname) {
                 result.textContent = '请填写姓名和昵称';
                 return;
             }
-
             result.textContent = '正在提交...';
-
             const response = await context.request({
                 method: 'POST',
                 url: 'https://webvpn.hxxy.edu.cn/api/access/user/change-info',
@@ -2097,7 +1885,6 @@
                     nickname
                 })
             });
-
             context.showResult(result, response);
         };
     }
@@ -2105,17 +1892,14 @@
 //微华厦抢宿舍
 {
     id: 'ssyx',
-    name: '宿舍预选',
-    description: '自动进行宿舍预选，请填写目标价位后开始。',
+    name: '(微华厦)宿舍预选',
+    description: '请在微华厦打开。自动进行宿舍预选，请填写目标价位后开始。',
     render(container, context) {
-
         container.innerHTML = `
             <div class="tool-head">
                 <button class="secondary tool-back">返回工具箱</button>
                 <h4>宿舍预选</h4>
             </div>
-
-
             <label>
                 选择价位
                 <select id="ssyxSelectPrice">
@@ -2124,441 +1908,221 @@
                     <option value="4000">4000</option>
                 </select>
             </label>
-
-
             <label>
                 自定义价位（优先）
                 <input id="ssyxCustomPrice" placeholder="例如1500">
             </label>
-
-
             <label>
                 请求间隔(ms)
                 <input 
                     id="ssyxInterval"
                     value="5100">
             </label>
-
-
             <label>
                 <input type="checkbox" id="ssyxScheduleEnable">
                 定时开始
             </label>
-
-
             <label>
                 开始日期
                 <input type="date" id="ssyxDate">
             </label>
-
-
             <label>
                 开始时间
                 <input type="time" id="ssyxTime">
             </label>
-
-
-
             <div class="actions">
                 <button id="startSsyx">
                     开始抢宿舍
                 </button>
             </div>
-
-
             <pre id="ssyxResult">
 等待开始
             </pre>
         `;
-
-
-
         container.querySelector('.tool-back')
             .onclick = context.back;
-
-
-
         const selectPrice =
             container.querySelector('#ssyxSelectPrice');
-
         const customPrice =
             container.querySelector('#ssyxCustomPrice');
-
         const intervalInput =
             container.querySelector('#ssyxInterval');
-
         const scheduleEnable =
             container.querySelector('#ssyxScheduleEnable');
-
         const dateInput =
             container.querySelector('#ssyxDate');
-
         const timeInput =
             container.querySelector('#ssyxTime');
-
         const button =
             container.querySelector('#startSsyx');
-
         const result =
             container.querySelector('#ssyxResult');
-
-
-
         // 默认今天
         const now = new Date();
-
         dateInput.value =
             now.toISOString()
                 .substring(0,10);
-
-
         // 默认当前时间
         timeInput.value =
             now.toTimeString()
                 .substring(0,5);
-
-
-
         let running = false;
         let count = 0;
-
-
-
         function nowTime() {
-
             return new Date()
                 .toLocaleTimeString();
-
         }
-
-
-
-
         function appendResult(text) {
-
             result.textContent +=
                 `\n[${nowTime()}]\n${text}\n`;
-
             result.scrollTop =
                 result.scrollHeight;
-
         }
-
-
-
-
-
         async function requestSsyx() {
-
             if (!running) {
                 return;
             }
-
-
             const price =
                 customPrice.value.trim() ||
                 selectPrice.value;
-
-
-
             count++;
-
-
             appendResult(
                 `第 ${count} 次请求\n目标价位: ${price}`
             );
-
-
-
             try {
-
-
                 const response =
                     await context.request({
-
                         method:'POST',
-
                         url:
                         'https://m.hxxy.edu.cn/xitong/ssyx/select.php',
-
                         headers:{
                             'Content-Type':
                             'application/x-www-form-urlencoded'
                         },
-
-
                         body:
                         new URLSearchParams({
                             price
                         }).toString()
-
                     });
-
-
-
                 let data;
-
-
                 try {
-
                     data =
                         JSON.parse(response.text);
-
                 } catch(e) {
-
                     data=response;
-
                 }
-
-
-
                 if(data && data.msg !== undefined){
-
                     appendResult(
                         data.msg
                     );
-
                 }else{
-
                     appendResult(
                         JSON.stringify(data)
                     );
-
                 }
-
-
-
             }catch(e){
-
                 appendResult(
                     `请求异常:\n${e}`
                 );
-
             }
-
         }
-
-
-
-
-
-
         async function loopSsyx(){
-
             while(running){
-
-
                 await requestSsyx();
-
-
                 if(!running){
                     break;
                 }
-
-
                 let interval =
                     parseInt(intervalInput.value);
-
-
                 if(
                     isNaN(interval) ||
                     interval < 1000
                 ){
                     interval=5100;
                 }
-
-
-
                 await new Promise(resolve=>{
-
                     setTimeout(
                         resolve,
                         interval
                     );
-
                 });
-
-
             }
-
         }
-
-
-
-
-
-
         function startRunning(){
-
             running=true;
-
             count=0;
-
-
             button.textContent=
                 '停止抢宿舍';
-
-
             appendResult(
                 '开始执行抢宿舍'
             );
-
-
             loopSsyx();
-
         }
-
-
-
-
-
-
         function waitSchedule(targetTime){
-
-
             const timer =
                 setInterval(()=>{
-
-
                     const now =
                         Date.now();
-
-
-
                     const remain =
                         targetTime-now;
-
-
-
                     if(remain<=0){
-
-
                         clearInterval(timer);
-
-
-
                         appendResult(
                             '定时时间到，开始执行'
                         );
-
-
                         startRunning();
-
-
                         return;
-
                     }
-
-
-
                     const sec =
                         Math.floor(
                             remain/1000
                         );
-
-
                     button.textContent =
                         `等待开始 (${sec}s)`;
-
-
                 },1000);
-
-
         }
-
-
-
-
-
-
-
         button.onclick=()=>{
-
-
             if(running){
-
                 running=false;
-
-
                 button.textContent=
                     '开始抢宿舍';
-
-
                 appendResult(
                     '已停止'
                 );
-
-
                 return;
-
             }
-
-
-
-
-
             if(scheduleEnable.checked){
-
-
                 const target =
                     new Date(
                         `${dateInput.value}T${timeInput.value}`
                     ).getTime();
-
-
-
                 if(isNaN(target)){
-
                     appendResult(
                         '定时时间无效'
                     );
-
                     return;
-
                 }
-
-
-
                 if(target <= Date.now()){
-
                     appendResult(
                         '定时时间必须晚于当前时间'
                     );
-
                     return;
-
                 }
-
-
-
                 appendResult(
                     `等待定时开始:\n${dateInput.value} ${timeInput.value}`
                 );
-
-
                 waitSchedule(target);
-
-
-
             }else{
-
-
                 startRunning();
-
             }
-
-
         };
-
     }
 }
   ];
-
   // ---------- 自动任务：后台轮询 销假 / 活动签到签退 / 假期登记 / 晚寝签到 ----------
   const AUTO_INTERVAL_MIN = 1000;
   const AUTO_DEFAULT_INTERVAL = 30000;
   const AUTO_BATCH_SIZE = 10;
-
   const autoTasksState = {
     running: false,
     timer: null,
@@ -2577,22 +2141,18 @@
     logs: [],
     ui: null
   };
-
   function autoLog(text) {
     const line = `${new Date().toLocaleTimeString()} ${text}`;
     autoTasksState.logs.push(line);
     if (autoTasksState.logs.length > 200) autoTasksState.logs.splice(0, autoTasksState.logs.length - 200);
     if (autoTasksState.ui && autoTasksState.ui.container && autoTasksState.ui.container.isConnected) autoTasksState.ui.update();
   }
-
   function autoSleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
-
   function isTruthyValue(value) {
     return value === true || value === 1 || value === '1' || value === '是' || value === 'Y' || value === 'y';
   }
-
   function isWithinTimeWindow(startText, endText) {
     const now = Date.now();
     const start = startText ? Date.parse(String(startText).replace('T', ' ')) : NaN;
@@ -2601,16 +2161,13 @@
     if (!Number.isNaN(end) && now > end) return false;
     return true;
   }
-
   function autoSucceeded(json) {
     return Boolean(json && (json.isok === true || json.code === 0));
   }
-
   function autoMessage(json) {
     if (!json || typeof json !== 'object') return '未知返回';
     return String(json.msg || json.message || json.Message || (autoSucceeded(json) ? '成功' : '失败'));
   }
-
   async function autoPost(context, url, data) {
     const response = await context.request({
       method: 'POST',
@@ -2622,7 +2179,6 @@
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return JSON.parse(response.text);
   }
-
   // 销假：查询请假记录并逐条提交销假
   async function autoRunLeave(context, address) {
     const json = await autoPost(context, 'https://plat.hxxy.edu.cn/studentwork/VApply/GetVList', {
@@ -2653,7 +2209,6 @@
       }
     }
   }
-
   // 学生活动：时间窗口内且未签到/未签退时自动执行
   async function autoRunActivity(context) {
     const json = await autoPost(context, 'https://plat.hxxy.edu.cn/studentwork/lessonactivity/getlessonstudentactivitycenterlist', {
@@ -2698,7 +2253,6 @@
       }
     }
   }
-
   // 假期登记：离校/到达（详情页 ID）与返校
   async function autoRunHoliday(context) {
     const json = await autoPost(context, 'https://me.hxxy.edu.cn/studentwork/HStudent/_HolidayActiveList', {
@@ -2797,7 +2351,6 @@
       }
     }
   }
-
   // 晚寝签到
   async function autoRunPunch(context) {
     const urls = [
@@ -2833,7 +2386,6 @@
       }
     }
   }
-
   async function autoRunRound(context, tasks) {
     if (tasks.leave) {
       try { await autoRunLeave(context, config.autoConfig.address); } catch (e) { autoTasksState.stats.errors++; autoLog(`[销假] 轮询异常：${e.message}`); }
@@ -2848,7 +2400,6 @@
       try { await autoRunPunch(context); } catch (e) { autoTasksState.stats.errors++; autoLog(`[晚寝] 轮询异常：${e.message}`); }
     }
   }
-
   function autoTasksFromConfig() {
     return {
       leave: config.autoConfig.leave,
@@ -2857,11 +2408,9 @@
       punch: config.autoConfig.punch
     };
   }
-
   function autoNotifyUi() {
     if (autoTasksState.ui && autoTasksState.ui.container && autoTasksState.ui.container.isConnected) autoTasksState.ui.update();
   }
-
   async function autoRunOneRound(context) {
     autoTasksState.roundCount++;
     autoLog(`开始第 ${autoTasksState.roundCount} 轮自动任务`);
@@ -2869,7 +2418,6 @@
     autoLog(`第 ${autoTasksState.roundCount} 轮完成`);
     autoNotifyUi();
   }
-
   function autoStartTasks(context) {
     autoTasksState.running = true;
     autoTasksState.roundCount = 0;
@@ -2882,7 +2430,6 @@
     autoTasksState.timer = window.setInterval(() => autoRunOneRound(context), config.autoConfig.interval);
     localLog('log', `自动任务已启动，每 ${config.autoConfig.interval}ms 轮询一次`);
   }
-
   function autoStopTasks() {
     autoTasksState.running = false;
     if (autoTasksState.timer) {
@@ -2893,7 +2440,6 @@
     localLog('log', '自动任务已停止');
     autoNotifyUi();
   }
-
   function renderAutoTasks(container, context) {
     container.innerHTML = `
       <div class="tool-head"><button class="secondary tool-back">返回工具箱</button><h4>自动任务</h4></div>
@@ -2918,7 +2464,6 @@
       <div id="autoLog" class="auto-log"></div>
     `;
     container.querySelector('.tool-back').onclick = context.back;
-
     const style = document.createElement('style');
     style.textContent = `
       .auto-config{border:1px solid #cbd5e1;border-radius:9px;padding:10px;background:#f8fafc;margin-top:8px}
@@ -2930,13 +2475,11 @@
       .auto-log{margin-top:8px;max-height:200px;overflow:auto;font-size:11px;color:#64748b;white-space:pre-wrap;word-break:break-word;border-top:1px solid #e2e8f0;padding-top:6px}
     `;
     container.appendChild(style);
-
     const statusEl = container.querySelector('#autoStatus');
     const statsEl = container.querySelector('#autoStats');
     const logEl = container.querySelector('#autoLog');
     const startBtn = container.querySelector('#autoStart');
     const stopBtn = container.querySelector('#autoStop');
-
     const update = () => {
       const s = autoTasksState.stats;
       statusEl.textContent = autoTasksState.running
@@ -2953,9 +2496,7 @@
       startBtn.disabled = autoTasksState.running;
       stopBtn.disabled = !autoTasksState.running;
     };
-
     autoTasksState.ui = { container, update };
-
     container.querySelector('#autoLeave').checked = config.autoConfig.leave;
     container.querySelector('#autoActivity').checked = config.autoConfig.activity;
     container.querySelector('#autoHoliday').checked = config.autoConfig.holiday;
@@ -2963,7 +2504,6 @@
     container.querySelector('#autoAddress').value = config.autoConfig.address || '';
     container.querySelector('#autoInterval').value = config.autoConfig.interval;
     container.querySelector('#autoStartOnLoad').checked = !!config.autoConfig.autoStartOnLoad;
-
     const saveForm = () => {
       config.autoConfig.leave = container.querySelector('#autoLeave').checked;
       config.autoConfig.activity = container.querySelector('#autoActivity').checked;
@@ -2974,22 +2514,17 @@
       config.autoConfig.autoStartOnLoad = container.querySelector('#autoStartOnLoad').checked;
       saveConfig();
     };
-
     startBtn.onclick = () => {
       saveForm();
       autoStartTasks(context);
     };
-
     stopBtn.onclick = autoStopTasks;
-
     container.querySelector('#autoRunOnce').onclick = () => {
       saveForm();
       autoRunOneRound(context);
     };
-
     update();
   }
-
   // 主动API请求层，绕过页面CORS限制；页面Hook仍然使用原生XHR/fetch。
   function requestWithCurrentIdentity(options) {
     const start = performance.now();
@@ -3048,7 +2583,6 @@
       }
     });
   }
-
   function inspectDiagnosticResponse(response) {
     const text = response && response.text != null ? String(response.text) : '';
     const trimmed = text.trim();
@@ -3091,7 +2625,6 @@
       preview: text.slice(0, 500)
     };
   }
-
   async function requestWithFetchCurrentIdentity(options) {
     const start = performance.now();
     const timeoutMs = 20000;
@@ -3148,7 +2681,6 @@
       };
     }
   }
-
   async function runIOSRequestDiagnostic(options) {
     const attempts = [];
     const gmTimeoutMs = 20000;
@@ -3167,13 +2699,11 @@
     const gmInspection = inspectDiagnosticResponse(gmResponse);
     attempts.push({ transport: 'GM_xmlhttpRequest (withCredentials)', response: gmResponse, inspection: gmInspection });
     if (gmInspection.valid) return { success: true, fallbackUsed: false, attempts };
-
     const fetchResponse = await requestWithFetchCurrentIdentity(options);
     const fetchInspection = inspectDiagnosticResponse(fetchResponse);
     attempts.push({ transport: 'fetch (credentials: include)', response: fetchResponse, inspection: fetchInspection });
     return { success: fetchInspection.valid, fallbackUsed: true, attempts };
   }
-
   function formatIOSDiagnosticReport(result, options) {
     const environment = [
       `脚本版本：${VERSION}`,
@@ -3207,21 +2737,16 @@
       : `\n最终结果：失败，GM_xmlhttpRequest 与 fetch 均未返回有效JSON；请保留本报告用于定位 Cookie、CORS 或登录状态问题。`;
     return environment.concat(attempts, outcome).join('\n');
   }
-
   function renderInternalPage(container, title, url, back, fallback) {
     container.innerHTML = '';
-
     const head = document.createElement('div');
     head.className = 'tool-head';
-
     const backButton = document.createElement('button');
     backButton.className = 'secondary';
     backButton.textContent = '返回';
     backButton.onclick = back;
-
     const heading = document.createElement('h4');
     heading.textContent = title;
-
     head.appendChild(backButton);
     head.appendChild(heading);
     if (typeof fallback === 'function') {
@@ -3231,7 +2756,6 @@
       fallbackButton.onclick = fallback;
       head.appendChild(fallbackButton);
     }
-
     const frameViewport = document.createElement('div');
     frameViewport.className = 'internal-page-viewport';
     frameViewport.style.cssText = `
@@ -3246,13 +2770,11 @@
         contain:strict;
         margin:0 auto;
     `;
-
     const frame = document.createElement('iframe');
     frame.className = 'internal-page-frame';
     frame.src = new URL(url, window.location.href).href;
     frame.title = title;
     frame.setAttribute('scrolling', 'yes');
-
     frame.style.cssText = `
         display:block;
         position:absolute;
@@ -3266,13 +2788,11 @@
         transform:translateX(-50%) scale(.625);
         transform-origin:top center;
     `;
-
     if (typeof fallback === 'function') frame.addEventListener('error', fallback, { once: true });
     frameViewport.appendChild(frame);
     container.appendChild(head);
     container.appendChild(frameViewport);
 }
-
   function renderToolbox(container) {
     container.innerHTML = '<h4>工具箱</h4><div class="toolbox-list"></div><div class="toolbox-host"></div>';
     const list = container.querySelector('.toolbox-list');
@@ -3301,7 +2821,6 @@
       list.appendChild(row);
     });
   }
-
   function getApiForm(container) {
     return {
       name: container.querySelector('#apiName').value.trim(),
@@ -3311,7 +2830,6 @@
       body: container.querySelector('#apiBody').value
     };
   }
-
   function bodyToQueryString(body) {
     if (body == null || body === '') return '';
     if (body instanceof URLSearchParams) return body.toString();
@@ -3332,7 +2850,6 @@
     if (typeof body === 'object') return new URLSearchParams(Object.entries(body).map(([key, value]) => [key, value == null ? '' : String(value)])).toString();
     return String(body);
   }
-
   function appendQueryToUrl(rawUrl, body) {
     const url = new URL(String(rawUrl || ''), window.location.href);
     const query = bodyToQueryString(body);
@@ -3342,7 +2859,6 @@
     }
     return url.href;
   }
-
   function renderApiTest(container, api) {
     const item = api || {
       name: '',
@@ -3416,7 +2932,6 @@
     };
     renderSavedApis(container);
   }
-
   function alertInPanel(container, text) {
     const result = container.querySelector('#apiResult');
     if (result) {
@@ -3432,7 +2947,6 @@
     }
     notice.textContent = text;
   }
-
   async function copyCurrentCookies(container) {
     const cookies = (document.cookie || '').split(';').map(item => item.trim()).filter(Boolean).join(';') + (document.cookie ? ';' : '');
     if (!cookies) {
@@ -3456,7 +2970,6 @@
       alertInPanel(container, copied ? 'Cookies 已复制' : `Cookies：\n${cookies}`);
     }
   }
-
   function renderSavedApis(container) {
     const list = container.querySelector('#savedApiList');
     if (!list) return;
@@ -3474,7 +2987,6 @@
       list.appendChild(row);
     });
   }
-
   function saveLogAsApi(container, item) {
     const editor = container.querySelector('#logApiEditor');
     if (!editor) return;
@@ -3495,7 +3007,6 @@
     editor.remove();
     renderPanel();
   }
-
   function queryToDataObject(rawQuery) {
     const data = {};
     new URLSearchParams(rawQuery || '').forEach((value, key) => {
@@ -3507,7 +3018,6 @@
     });
     return data;
   }
-
   function splitUrlQueryToBody(rawUrl) {
     const original = String(rawUrl || '');
     try {
@@ -3521,7 +3031,6 @@
       return { url: original.slice(0, index), body: JSON.stringify(queryToDataObject(original.slice(index + 1)), null, 2) };
     }
   }
-
   function addFormContentType(headers, body) {
     const next = Object.assign({}, headers || {});
     if (body && !Object.keys(next).some(key => key.toLowerCase() === 'content-type')) {
@@ -3529,12 +3038,10 @@
     }
     return next;
   }
-
   const truncateForLog = (text, limit = 30000) => {
     const str = String(text == null ? '' : text);
     return str.length > limit ? str.slice(0, limit) + `\n...(已截断，共 ${str.length} 字符)` : str;
   };
-
   function renderLogDetail(container, item, row) {
     const old = row.querySelector('.log-detail');
     if (old) {
@@ -3613,7 +3120,6 @@
     };
     row.appendChild(detail);
   }
-
   function renderLogs(container) {
     const expandedId = container.dataset.expandedLogId || '';
     container.dataset.view = 'logs';
@@ -3652,7 +3158,6 @@
       renderPanel();
     };
   }
-
   const ruleModeNames = {
     replaceRequest: '替换请求',
     replaceResponse: '替换响应',
@@ -3660,7 +3165,6 @@
     modifyResponse: '修改响应',
     redirect: '重定向'
   };
-
   function renderRuleEditor(editor, rule, onSave) {
     const current = normalizeRule(rule || {
       id: 'rule-' + Date.now(), enabled: true, name: '用户规则', mode: 'modifyResponse',
@@ -3705,7 +3209,6 @@
     };
     refresh();
   }
-
   function renderRules(container) {
     container.innerHTML = '<h4>请求重写 <button id="addRule">新增</button></h4><div id="ruleEditor" class="editor" style="display:none"></div><div id="ruleList"></div>';
     const editor = container.querySelector('#ruleEditor');
@@ -3722,7 +3225,6 @@
       list.appendChild(row);
     });
   }
-
   function renderSettings(container) {
     const defaultTestUrl = 'https://me.hxxy.edu.cn/studentwork/PunchMStudent/GetActivityList';
     container.innerHTML = `<h4>设置</h4><label><input id="domEnabled" type="checkbox" ${config.domPatchEnabled ? 'checked' : ''}> 启用字段修补</label><label><input id="apiEnabled" type="checkbox" ${config.apiEnabled ? 'checked' : ''}> 启用API规则</label><label><input id="logEnabled" type="checkbox" ${config.logEnabled ? 'checked' : ''}> 记录API日志</label><label><input id="uaEnabled" type="checkbox" ${config.uaEnabled ? 'checked' : ''}> 锁定页面UA</label><label>最多保留日志条数<input id="maxLogs" type="number" min="20" max="1000" value="${config.maxLogs}"></label><button id="saveSettings">保存设置</button><div class="editor ios-request-test"><h4>iOS 请求测试</h4><label>请求方式<select id="iosTestMethod"><option>GET</option><option selected>POST</option><option>PUT</option><option>DELETE</option></select></label><label>接口地址<input id="iosTestUrl" value="${esc(defaultTestUrl)}" placeholder="输入返回JSON的接口"></label><label>请求头（JSON）<textarea id="iosTestHeaders" rows="3">{}</textarea></label><label>请求数据<textarea id="iosTestBody" rows="4" placeholder="GET数据会附加到查询参数">page=1&size=1000</textarea></label><button id="runIosRequestTest">开始测试</button><pre id="iosRequestTestResult">环境：${RUNTIME_ENVIRONMENT.isIOS ? 'iOS' : '非 iOS'}\n等待测试</pre></div>`;
@@ -3779,7 +3281,6 @@
       }
     };
   }
-
   function createPanel() {
     if (window.top !== window.self) return;
     if (!config.panelEnabled || window.top.__HX_PANEL_CREATED__ || document.getElementById('hxxy-enhancer-host')) return;
@@ -3957,7 +3458,6 @@
       once: true
     });
   }
-
   function renderPanel() {
     const host = document.getElementById('hxxy-enhancer-host');
     if (!host || !host.shadowRoot) return;
@@ -3967,7 +3467,6 @@
     // 默认定位到工具箱；已有视图或内容时保持不动
     if (content && !content.dataset.view && !content.innerHTML) renderToolbox(content);
   }
-
   startWatchdog();
   startDomPatch();
   createPanel();
