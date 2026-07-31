@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         华夏系统增强工具
 // @namespace    hxxy-enhancer
-// @version      5.6.6
+// @version      5.8.0
 // @description  华夏系统增强工具
 // @author     	 Zhang
 // @license    	 MIT
@@ -20,7 +20,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '5.6.6';
+  const VERSION = '5.8.0';
   const STORAGE_KEY = 'hxxy-enhancer-config-v3';
   const LOG_STORAGE_KEY = 'hxxy-enhancer-api-logs-v1';
   const EVENT_CONFIG = 'hxxy-enhancer-config';
@@ -148,7 +148,16 @@
     maxLogs: 200,
     rules: defaultRules,
     savedApis: [],
-    uaEnabled: true
+    uaEnabled: true,
+    autoConfig: {
+      leave: true,
+      activity: true,
+      holiday: true,
+      punch: true,
+      interval: 30000,
+      address: '',
+      autoStartOnLoad: false
+    }
   };
 
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -179,7 +188,8 @@
     return Object.assign({}, clone(defaultConfig), saved, {
       rules,
       savedApis: Array.isArray(saved.savedApis) ? saved.savedApis : [],
-      uaEnabled: saved.uaEnabled !== false
+      uaEnabled: saved.uaEnabled !== false,
+      autoConfig: Object.assign({}, clone(defaultConfig.autoConfig), saved.autoConfig || {})
     });
   }
   let config = loadConfig();
@@ -592,7 +602,13 @@
                 try { return value && typeof value === 'object' ? value : JSON.parse(value || '{}'); } catch (e) { return {}; }
             }
             function applyRequestHeaders(url, headers) {
-                const next = new Headers(headers || {}); const matchedRules = [];
+                let next;
+                const matchedRules = [];
+                try {
+                    next = new Headers(headers || {});
+                } catch (e) {
+                    return { headers: new Map(), modified: false, matchedRules: [] };
+                }
                 (state.config.rules || []).forEach(rule => {
                     if (!rule.enabled || !matches(rule, url) || rule.mode !== 'replaceRequest' || !rule.request || !rule.request.headersEnabled) return;
                     matchedRules.push(rule.name || rule.id || 'unnamed');
@@ -662,13 +678,70 @@
                     }
                 }));
             }
+            // 老式 PHP（如 m.hxxy.edu.cn）常用表单/iframe 提交而非 XHR，这里补抓表单请求
+            function serializeForm(form) {
+                const parts = [];
+                try {
+                    if (form && form.elements) {
+                        Array.prototype.forEach.call(form.elements, el => {
+                            if (!el || !el.name || el.disabled) return;
+                            const type = String(el.type || '').toLowerCase();
+                            if (type === 'submit' || type === 'button' || type === 'reset' || type === 'file') return;
+                            if (type === 'checkbox' || type === 'radio') {
+                                if (el.checked) parts.push([el.name, el.value == null ? 'on' : el.value]);
+                                return;
+                            }
+                            if (el.multiple && el.selectedOptions) {
+                                Array.prototype.forEach.call(el.selectedOptions, option => parts.push([el.name, option.value]));
+                                return;
+                            }
+                            parts.push([el.name, el.value == null ? '' : el.value]);
+                        });
+                    }
+                } catch (e) {}
+                return parts.map(pair => encodeURIComponent(pair[0]) + '=' + encodeURIComponent(pair[1])).join('&');
+            }
+            function logFormSubmit(form, trigger) {
+                try {
+                    if (!state.config.logEnabled || !form) return;
+                    let action = form.action || (window.location && window.location.href) || '';
+                    try { action = new URL(action, (window.location && window.location.href) || undefined).href; } catch (e) {}
+                    const method = String(form.method || 'GET').toUpperCase();
+                    const body = serializeForm(form);
+                    const url = method === 'GET' && body ? action + (action.indexOf('?') >= 0 ? '&' : '?') + body : action;
+                    window.dispatchEvent(new CustomEvent(EVENT_LOG, {
+                        detail: {
+                            id: 'form-' + Date.now() + '-' + Math.random().toString(36).slice(2),
+                            time: new Date().toLocaleTimeString(), timestamp: Date.now(),
+                            method, url, status: 0, duration: 0, modified: false, matchedRules: [],
+                            requestBody: method === 'POST' ? body : '',
+                            originalResponse: '', modifiedResponse: '',
+                            isForm: true, formTrigger: trigger || 'submit'
+                        }
+                    }));
+                } catch (e) { console.warn('[Zhang华夏系统增强] 表单日志失败', e); }
+            }
+            try {
+                document.addEventListener('submit', event => {
+                    const form = event.target && event.target.tagName === 'FORM' ? event.target : null;
+                    if (form) logFormSubmit(form, 'submit-event');
+                }, true);
+            } catch (e) {}
+            const nativeFormSubmit = HTMLFormElement.prototype.submit;
+            if (typeof nativeFormSubmit === 'function') {
+                HTMLFormElement.prototype.submit = function () {
+                    try { logFormSubmit(this, 'submit-call'); } catch (e) {}
+                    return nativeFormSubmit.apply(this, arguments);
+                };
+            }
             function processXhrResponse(xhr, meta) {
                 if (xhr.readyState !== 4 || meta.done) return;
                 meta.done = true;
                 try {
                     const responseType = xhr.responseType || 'text';
                     const nativeResponse = responseType === 'json' ? xhr.response : null;
-                    const originalText = responseType === 'json' ? (nativeResponse == null ? '' : JSON.stringify(nativeResponse)) : (responseType === 'text' || responseType === '' ? xhr.responseText : '');
+                    const documentText = responseType === 'document' && xhr.responseXML ? new XMLSerializer().serializeToString(xhr.responseXML) : '';
+                    const originalText = responseType === 'json' ? (nativeResponse == null ? '' : JSON.stringify(nativeResponse)) : (responseType === 'text' || responseType === '' ? xhr.responseText : documentText);
                     const result = transformResponse(meta.url, originalText);
                     if (result.modified && responseType !== 'document' && responseType !== 'arraybuffer' && responseType !== 'blob') {
                         if (!patchXhrResponse(xhr, responseType, result.text)) console.warn('[Zhang华夏系统增强] XHR响应回写失败');
@@ -1215,6 +1288,153 @@
           }
         }
 
+        // 抢报：按次数/间隔循环发送报名包（间隔 0 为全速并发）
+        function renderGrabPage(activity) {
+          const grab = {
+            running: false,
+            sent: 0,
+            success: 0,
+            fail: 0,
+            logs: []
+          };
+          container.innerHTML = `
+            <div class="tool-head"><button class="secondary grab-back">返回</button><h4>活动抢报</h4></div>
+            <div class="grab-title">${esc(activity.activityname || '')}</div>
+            <div class="grab-info">活动ID：${esc(activity.id)}</div>
+            <div class="grab-config">
+              <label>循环执行次数（-1 为无限）<input id="grabTimes" type="number" value="-1"></label>
+              <label>循环间隔（毫秒，0 为全速并发发送报名请求）<input id="grabInterval" type="number" value="1000" min="0"></label>
+            </div>
+            <div class="actions">
+              <button id="grabStart">开始抢报</button>
+              <button id="grabStop" class="danger" disabled>停止</button>
+            </div>
+            <div id="grabStatus" class="grab-status"></div>
+            <pre id="grabLog" class="grab-log">等待开始</pre>
+          `;
+          container.querySelector('.grab-back').onclick = () => {
+            grab.running = false;
+            context.reload();
+          };
+          const statusEl = container.querySelector('#grabStatus');
+          const logEl = container.querySelector('#grabLog');
+          const startBtn = container.querySelector('#grabStart');
+          const stopBtn = container.querySelector('#grabStop');
+
+          const style = document.createElement('style');
+          style.textContent = `
+            .grab-title{font-size:14px;font-weight:600;color:#0f172a;margin-top:8px}
+            .grab-info{font-size:12px;color:#64748b;margin-top:4px}
+            .grab-config{border:1px solid #cbd5e1;border-radius:9px;padding:10px;background:#f8fafc;margin-top:8px}
+            .grab-status{margin-top:8px;font-size:12px;color:#334155;white-space:pre-wrap}
+            .grab-log{margin-top:8px;max-height:220px;overflow:auto;font-size:11px}
+          `;
+          container.appendChild(style);
+
+          const update = () => {
+            statusEl.textContent = (grab.running ? '状态：抢报中' : (grab.sent > 0 ? '状态：已停止' : '状态：未开始'))
+              + `\n已发送：${grab.sent}  成功：${grab.success}  失败：${grab.fail}`;
+            logEl.textContent = grab.logs.slice(-40).join('\n') || '等待开始';
+            logEl.scrollTop = logEl.scrollHeight;
+            startBtn.disabled = grab.running;
+            stopBtn.disabled = !grab.running;
+          };
+
+          const grabLog = text => {
+            grab.logs.push(`${new Date().toLocaleTimeString()} ${text}`);
+            update();
+          };
+
+          const sendApply = async () => {
+            const response = await context.request({
+              method: 'POST',
+              url: 'https://plat.hxxy.edu.cn/studentwork/LessonActivityMobile/AddApplyFor',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                Phone: '18888888888',
+                ReasonsApplying: '申请报名',
+                ActivityId: activity.id
+              }).toString()
+            });
+            let json;
+            try {
+              json = JSON.parse(response.text);
+            } catch (e) {
+              throw new Error(response.error || `HTTP ${response.status}`);
+            }
+            return json;
+          };
+
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+          async function run() {
+            const times = Number(container.querySelector('#grabTimes').value) || -1;
+            const interval = Math.max(0, Number(container.querySelector('#grabInterval').value) || 0);
+            grab.running = true;
+            grab.sent = 0;
+            grab.success = 0;
+            grab.fail = 0;
+            grab.logs = [];
+            update();
+            grabLog(`开始抢报：${activity.activityname || ''}（次数=${times}，间隔=${interval}ms）`);
+            try {
+              while (grab.running) {
+                if (times !== -1 && grab.sent >= times) break;
+                if (interval === 0) {
+                  const remaining = times === -1 ? AUTO_BATCH_SIZE : Math.min(AUTO_BATCH_SIZE, times - grab.sent);
+                  const batch = [];
+                  for (let i = 0; i < remaining && grab.running; i++) {
+                    batch.push(sendApply().then(json => {
+                      grab.sent++;
+                      if (json.code === 0) {
+                        grab.success++;
+                        grabLog(`#${grab.sent} 报名成功`);
+                      } else {
+                        grab.fail++;
+                        grabLog(`#${grab.sent} 报名失败：${json.msg || '未知错误'}`);
+                      }
+                    }).catch(e => {
+                      grab.sent++;
+                      grab.fail++;
+                      grabLog(`#${grab.sent} 请求异常：${e.message}`);
+                    }));
+                  }
+                  await Promise.all(batch);
+                  // 批次间留出微退避：避免无限+全速时事件循环被占满导致停止按钮无法响应
+                  if (grab.running) await sleep(5);
+                } else {
+                  await sendApply().then(json => {
+                    grab.sent++;
+                    if (json.code === 0) {
+                      grab.success++;
+                      grabLog(`#${grab.sent} 报名成功`);
+                    } else {
+                      grab.fail++;
+                      grabLog(`#${grab.sent} 报名失败：${json.msg || '未知错误'}`);
+                    }
+                  }).catch(e => {
+                    grab.sent++;
+                    grab.fail++;
+                    grabLog(`#${grab.sent} 请求异常：${e.message}`);
+                  });
+                  if (grab.running && (times === -1 || grab.sent < times)) await sleep(interval);
+                }
+              }
+            } finally {
+              grab.running = false;
+              grabLog(`抢报结束：共发送 ${grab.sent} 次，成功 ${grab.success}，失败 ${grab.fail}`);
+              update();
+            }
+          }
+
+          startBtn.onclick = run;
+          stopBtn.onclick = () => {
+            grab.running = false;
+            grabLog('正在停止...（在途请求完成后停止）');
+          };
+          update();
+        }
+
         function getActivityStatus(activity) {
           return {
             status: activity.activitystartstate,
@@ -1320,6 +1540,10 @@
                     报名
                     </button>
 
+                    <button class="grab-btn">
+                    抢报
+                    </button>
+
                     <button class="cancel-btn">取消报名</button>
 
                     <button class="signin-btn">
@@ -1347,6 +1571,10 @@
 
             container.querySelectorAll('.apply-btn').forEach((b, i) => {
               b.onclick = () => applyActivity(data[i]);
+            });
+
+            container.querySelectorAll('.grab-btn').forEach((b, i) => {
+              b.onclick = () => renderGrabPage(data[i]);
             });
 
             container.querySelectorAll('.cancel-btn').forEach((b, i) => {
@@ -1874,7 +2102,893 @@
         };
     }
 },
+//微华厦抢宿舍
+{
+    id: 'ssyx',
+    name: '宿舍预选',
+    description: '自动进行宿舍预选，请填写目标价位后开始。',
+    render(container, context) {
+
+        container.innerHTML = `
+            <div class="tool-head">
+                <button class="secondary tool-back">返回工具箱</button>
+                <h4>宿舍预选</h4>
+            </div>
+
+
+            <label>
+                选择价位
+                <select id="ssyxSelectPrice">
+                    <option value="1500">1500</option>
+                    <option value="3000">3000</option>
+                    <option value="4000">4000</option>
+                </select>
+            </label>
+
+
+            <label>
+                自定义价位（优先）
+                <input id="ssyxCustomPrice" placeholder="例如1500">
+            </label>
+
+
+            <label>
+                请求间隔(ms)
+                <input 
+                    id="ssyxInterval"
+                    value="5100">
+            </label>
+
+
+            <label>
+                <input type="checkbox" id="ssyxScheduleEnable">
+                定时开始
+            </label>
+
+
+            <label>
+                开始日期
+                <input type="date" id="ssyxDate">
+            </label>
+
+
+            <label>
+                开始时间
+                <input type="time" id="ssyxTime">
+            </label>
+
+
+
+            <div class="actions">
+                <button id="startSsyx">
+                    开始抢宿舍
+                </button>
+            </div>
+
+
+            <pre id="ssyxResult">
+等待开始
+            </pre>
+        `;
+
+
+
+        container.querySelector('.tool-back')
+            .onclick = context.back;
+
+
+
+        const selectPrice =
+            container.querySelector('#ssyxSelectPrice');
+
+        const customPrice =
+            container.querySelector('#ssyxCustomPrice');
+
+        const intervalInput =
+            container.querySelector('#ssyxInterval');
+
+        const scheduleEnable =
+            container.querySelector('#ssyxScheduleEnable');
+
+        const dateInput =
+            container.querySelector('#ssyxDate');
+
+        const timeInput =
+            container.querySelector('#ssyxTime');
+
+        const button =
+            container.querySelector('#startSsyx');
+
+        const result =
+            container.querySelector('#ssyxResult');
+
+
+
+        // 默认今天
+        const now = new Date();
+
+        dateInput.value =
+            now.toISOString()
+                .substring(0,10);
+
+
+        // 默认当前时间
+        timeInput.value =
+            now.toTimeString()
+                .substring(0,5);
+
+
+
+        let running = false;
+        let count = 0;
+
+
+
+        function nowTime() {
+
+            return new Date()
+                .toLocaleTimeString();
+
+        }
+
+
+
+
+        function appendResult(text) {
+
+            result.textContent +=
+                `\n[${nowTime()}]\n${text}\n`;
+
+            result.scrollTop =
+                result.scrollHeight;
+
+        }
+
+
+
+
+
+        async function requestSsyx() {
+
+            if (!running) {
+                return;
+            }
+
+
+            const price =
+                customPrice.value.trim() ||
+                selectPrice.value;
+
+
+
+            count++;
+
+
+            appendResult(
+                `第 ${count} 次请求\n目标价位: ${price}`
+            );
+
+
+
+            try {
+
+
+                const response =
+                    await context.request({
+
+                        method:'POST',
+
+                        url:
+                        'https://m.hxxy.edu.cn/xitong/ssyx/select.php',
+
+                        headers:{
+                            'Content-Type':
+                            'application/x-www-form-urlencoded'
+                        },
+
+
+                        body:
+                        new URLSearchParams({
+                            price
+                        }).toString()
+
+                    });
+
+
+
+                let data;
+
+
+                try {
+
+                    data =
+                        JSON.parse(response.text);
+
+                } catch(e) {
+
+                    data=response;
+
+                }
+
+
+
+                if(data && data.msg !== undefined){
+
+                    appendResult(
+                        data.msg
+                    );
+
+                }else{
+
+                    appendResult(
+                        JSON.stringify(data)
+                    );
+
+                }
+
+
+
+            }catch(e){
+
+                appendResult(
+                    `请求异常:\n${e}`
+                );
+
+            }
+
+        }
+
+
+
+
+
+
+        async function loopSsyx(){
+
+            while(running){
+
+
+                await requestSsyx();
+
+
+                if(!running){
+                    break;
+                }
+
+
+                let interval =
+                    parseInt(intervalInput.value);
+
+
+                if(
+                    isNaN(interval) ||
+                    interval < 1000
+                ){
+                    interval=5100;
+                }
+
+
+
+                await new Promise(resolve=>{
+
+                    setTimeout(
+                        resolve,
+                        interval
+                    );
+
+                });
+
+
+            }
+
+        }
+
+
+
+
+
+
+        function startRunning(){
+
+            running=true;
+
+            count=0;
+
+
+            button.textContent=
+                '停止抢宿舍';
+
+
+            appendResult(
+                '开始执行抢宿舍'
+            );
+
+
+            loopSsyx();
+
+        }
+
+
+
+
+
+
+        function waitSchedule(targetTime){
+
+
+            const timer =
+                setInterval(()=>{
+
+
+                    const now =
+                        Date.now();
+
+
+
+                    const remain =
+                        targetTime-now;
+
+
+
+                    if(remain<=0){
+
+
+                        clearInterval(timer);
+
+
+
+                        appendResult(
+                            '定时时间到，开始执行'
+                        );
+
+
+                        startRunning();
+
+
+                        return;
+
+                    }
+
+
+
+                    const sec =
+                        Math.floor(
+                            remain/1000
+                        );
+
+
+                    button.textContent =
+                        `等待开始 (${sec}s)`;
+
+
+                },1000);
+
+
+        }
+
+
+
+
+
+
+
+        button.onclick=()=>{
+
+
+            if(running){
+
+                running=false;
+
+
+                button.textContent=
+                    '开始抢宿舍';
+
+
+                appendResult(
+                    '已停止'
+                );
+
+
+                return;
+
+            }
+
+
+
+
+
+            if(scheduleEnable.checked){
+
+
+                const target =
+                    new Date(
+                        `${dateInput.value}T${timeInput.value}`
+                    ).getTime();
+
+
+
+                if(isNaN(target)){
+
+                    appendResult(
+                        '定时时间无效'
+                    );
+
+                    return;
+
+                }
+
+
+
+                if(target <= Date.now()){
+
+                    appendResult(
+                        '定时时间必须晚于当前时间'
+                    );
+
+                    return;
+
+                }
+
+
+
+                appendResult(
+                    `等待定时开始:\n${dateInput.value} ${timeInput.value}`
+                );
+
+
+                waitSchedule(target);
+
+
+
+            }else{
+
+
+                startRunning();
+
+            }
+
+
+        };
+
+    }
+}
   ];
+
+  // ---------- 自动任务：后台轮询 销假 / 活动签到签退 / 假期登记 / 晚寝签到 ----------
+  const AUTO_INTERVAL_MIN = 1000;
+  const AUTO_DEFAULT_INTERVAL = 30000;
+  const AUTO_BATCH_SIZE = 10;
+
+  const autoTasksState = {
+    running: false,
+    timer: null,
+    roundCount: 0,
+    successKeys: new Set(),
+    stats: {
+      leave: 0,
+      activitySignin: 0,
+      activitySignout: 0,
+      holidayLeave: 0,
+      holidayArrive: 0,
+      holidayBack: 0,
+      punch: 0,
+      errors: 0
+    },
+    logs: [],
+    ui: null
+  };
+
+  function autoLog(text) {
+    const line = `${new Date().toLocaleTimeString()} ${text}`;
+    autoTasksState.logs.push(line);
+    if (autoTasksState.logs.length > 200) autoTasksState.logs.splice(0, autoTasksState.logs.length - 200);
+    if (autoTasksState.ui && autoTasksState.ui.container && autoTasksState.ui.container.isConnected) autoTasksState.ui.update();
+  }
+
+  function autoSleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function isTruthyValue(value) {
+    return value === true || value === 1 || value === '1' || value === '是' || value === 'Y' || value === 'y';
+  }
+
+  function isWithinTimeWindow(startText, endText) {
+    const now = Date.now();
+    const start = startText ? Date.parse(String(startText).replace('T', ' ')) : NaN;
+    const end = endText ? Date.parse(String(endText).replace('T', ' ')) : NaN;
+    if (!Number.isNaN(start) && now < start) return false;
+    if (!Number.isNaN(end) && now > end) return false;
+    return true;
+  }
+
+  function autoSucceeded(json) {
+    return Boolean(json && (json.isok === true || json.code === 0));
+  }
+
+  function autoMessage(json) {
+    if (!json || typeof json !== 'object') return '未知返回';
+    return String(json.msg || json.message || json.Message || (autoSucceeded(json) ? '成功' : '失败'));
+  }
+
+  async function autoPost(context, url, data) {
+    const response = await context.request({
+      method: 'POST',
+      url,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: new URLSearchParams(data).toString()
+    });
+    if (response.error) throw new Error(response.error);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return JSON.parse(response.text);
+  }
+
+  // 销假：查询请假记录并逐条提交销假
+  async function autoRunLeave(context, address) {
+    const json = await autoPost(context, 'https://plat.hxxy.edu.cn/studentwork/VApply/GetVList', {
+      key: '', page: '1', rows: '1000', askLeaveStatus: '-10'
+    });
+    const data = Array.isArray(json.data) ? json.data : [];
+    for (const item of data) {
+      const id = item.id;
+      if (id == null || autoTasksState.successKeys.has('leave:' + id)) continue;
+      const useAddress = (item.cancelplace && String(item.cancelplace).trim()) || (address && String(address).trim());
+      if (!useAddress) {
+        autoLog(`[销假] ${id} 无销假地址，跳过`);
+        continue;
+      }
+      try {
+        const result = await autoPost(context, 'https://plat.hxxy.edu.cn/studentwork/VApply/SubmitSignin', { id, address: useAddress });
+        if (autoSucceeded(result)) {
+          autoTasksState.successKeys.add('leave:' + id);
+          autoTasksState.stats.leave++;
+          autoLog(`[销假] ${id} 成功`);
+        } else {
+          autoTasksState.stats.errors++;
+          autoLog(`[销假] ${id} 失败：${autoMessage(result)}`);
+        }
+      } catch (e) {
+        autoTasksState.stats.errors++;
+        autoLog(`[销假] ${id} 异常：${e.message}`);
+      }
+    }
+  }
+
+  // 学生活动：时间窗口内且未签到/未签退时自动执行
+  async function autoRunActivity(context) {
+    const json = await autoPost(context, 'https://plat.hxxy.edu.cn/studentwork/lessonactivity/getlessonstudentactivitycenterlist', {
+      AcademicYear: '0', Semester: '0', ProjectCategoryType: '0', ProjectType: '0', ActivityType: '0', ActivityLevel: '0',
+      Sponsor: '', Organizer: '', ActivityStatue: '0', key: '', _search: 'false', nd: '', rows: '200', page: '1', sidx: '', sord: 'asc'
+    });
+    const data = Array.isArray(json.data) ? json.data : [];
+    for (const item of data) {
+      const id = item.id;
+      if (id == null || !isWithinTimeWindow(item.begindate, item.enddate)) continue;
+      if (!isTruthyValue(item.issignin) && !autoTasksState.successKeys.has('act-signin:' + id)) {
+        try {
+          const result = await autoPost(context, 'https://plat.hxxy.edu.cn/studentwork/LessonActivityMobile/SubmitStuActSignUpSanCodeSignin', { ActivityId: id });
+          if (autoSucceeded(result)) {
+            autoTasksState.successKeys.add('act-signin:' + id);
+            autoTasksState.stats.activitySignin++;
+            autoLog(`[活动签到] ${id} 成功`);
+          } else {
+            autoTasksState.stats.errors++;
+            autoLog(`[活动签到] ${id} 失败：${autoMessage(result)}`);
+          }
+        } catch (e) {
+          autoTasksState.stats.errors++;
+          autoLog(`[活动签到] ${id} 异常：${e.message}`);
+        }
+      }
+      if (!isTruthyValue(item.issignout) && !autoTasksState.successKeys.has('act-signout:' + id)) {
+        try {
+          const result = await autoPost(context, 'https://plat.hxxy.edu.cn/studentwork/LessonActivityMobile/SubmitStuActSignUpScanCodeSignOut', { ActivityId: id });
+          if (autoSucceeded(result)) {
+            autoTasksState.successKeys.add('act-signout:' + id);
+            autoTasksState.stats.activitySignout++;
+            autoLog(`[活动签退] ${id} 成功`);
+          } else {
+            autoTasksState.stats.errors++;
+            autoLog(`[活动签退] ${id} 失败：${autoMessage(result)}`);
+          }
+        } catch (e) {
+          autoTasksState.stats.errors++;
+          autoLog(`[活动签退] ${id} 异常：${e.message}`);
+        }
+      }
+    }
+  }
+
+  // 假期登记：离校/到达（详情页 ID）与返校
+  async function autoRunHoliday(context) {
+    const json = await autoPost(context, 'https://me.hxxy.edu.cn/studentwork/HStudent/_HolidayActiveList', {
+      key: '', page: '1', rows: '100', schoolyear: '-1'
+    });
+    const data = Array.isArray(json.data) ? json.data : [];
+    for (const activity of data) {
+      const id = activity.id;
+      if (id == null) continue;
+      const leaveKey = 'holiday-leave:' + id;
+      const arriveKey = 'holiday-arrive:' + id;
+      if (!autoTasksState.successKeys.has(leaveKey) || !autoTasksState.successKeys.has(arriveKey)) {
+        let detailIds = [];
+        try {
+          const detailResponse = await context.request({
+            method: 'GET',
+            url: `https://me.hxxy.edu.cn/studentwork/vHStudent/VLeave?id=${encodeURIComponent(id)}`
+          });
+          if (!detailResponse.error && detailResponse.ok) {
+            const seen = new Set();
+            const pattern = /btn(?:LeaveSchoolRevoke|Arrive|LeaveSchool)\(\s*['"]?(\d+)['"]?\s*\)/g;
+            let match;
+            while ((match = pattern.exec(detailResponse.text)) !== null) {
+              if (!seen.has(match[1])) {
+                seen.add(match[1]);
+                detailIds.push(match[1]);
+              }
+            }
+          }
+        } catch (e) {
+          autoTasksState.stats.errors++;
+          autoLog(`[假期] ${id} 详情解析异常：${e.message}`);
+        }
+        for (const detailId of detailIds) {
+          if (!autoTasksState.successKeys.has(leaveKey)) {
+            try {
+              const result = await autoPost(context, 'https://me.hxxy.edu.cn/studentwork/HStudent/Save_Leave', { id: detailId });
+              if (autoSucceeded(result)) {
+                autoTasksState.successKeys.add(leaveKey);
+                autoTasksState.stats.holidayLeave++;
+                autoLog(`[离校] ${id} 成功`);
+              } else {
+                autoTasksState.stats.errors++;
+                autoLog(`[离校] ${id} 失败：${autoMessage(result)}`);
+              }
+            } catch (e) {
+              autoTasksState.stats.errors++;
+              autoLog(`[离校] ${id} 异常：${e.message}`);
+            }
+          }
+          if (!autoTasksState.successKeys.has(arriveKey)) {
+            try {
+              const result = await autoPost(context, 'https://me.hxxy.edu.cn/studentwork/HStudent/Save_Arrive', {
+                id: detailId,
+                address: '',
+                longitudeGaoDe: '118.077544',
+                latitudeGaoDe: '24.633716',
+                arriveCode: '0'
+              });
+              if (autoSucceeded(result)) {
+                autoTasksState.successKeys.add(arriveKey);
+                autoTasksState.stats.holidayArrive++;
+                autoLog(`[到达] ${id} 成功`);
+              } else {
+                autoTasksState.stats.errors++;
+                autoLog(`[到达] ${id} 失败：${autoMessage(result)}`);
+              }
+            } catch (e) {
+              autoTasksState.stats.errors++;
+              autoLog(`[到达] ${id} 异常：${e.message}`);
+            }
+          }
+        }
+      }
+      const backKey = 'holiday-back:' + id;
+      if (!autoTasksState.successKeys.has(backKey)) {
+        try {
+          const result = await autoPost(context, 'https://me.hxxy.edu.cn/studentwork/vHStudent/SubmitSignin', {
+            id,
+            address: '厦门华夏',
+            longitudeGaoDe: '118.077544',
+            latitudeGaoDe: '24.633716'
+          });
+          if (autoSucceeded(result)) {
+            autoTasksState.successKeys.add(backKey);
+            autoTasksState.stats.holidayBack++;
+            autoLog(`[返校] ${id} 成功`);
+          } else {
+            autoTasksState.stats.errors++;
+            autoLog(`[返校] ${id} 失败：${autoMessage(result)}`);
+          }
+        } catch (e) {
+          autoTasksState.stats.errors++;
+          autoLog(`[返校] ${id} 异常：${e.message}`);
+        }
+      }
+    }
+  }
+
+  // 晚寝签到
+  async function autoRunPunch(context) {
+    const urls = [
+      'https://plat.hxxy.edu.cn/studentwork/PunchMStudent/GetActivityList',
+      'https://plat.hxxy.edu.cn/studentwork/PunchMTeacher/_TableList'
+    ];
+    let data = [];
+    for (const url of urls) {
+      try {
+        const json = await autoPost(context, url, { page: '1', size: '1000' });
+        if (json.isok !== false && Array.isArray(json.data)) {
+          data = json.data;
+          break;
+        }
+      } catch (e) {}
+    }
+    for (const item of data) {
+      const id = item.id;
+      if (id == null || autoTasksState.successKeys.has('punch:' + id)) continue;
+      try {
+        const result = await autoPost(context, 'https://plat.hxxy.edu.cn/studentwork/PunchMStudent/SubmitSignin', { ActivityId: id });
+        if (autoSucceeded(result)) {
+          autoTasksState.successKeys.add('punch:' + id);
+          autoTasksState.stats.punch++;
+          autoLog(`[晚寝] ${id} 成功`);
+        } else {
+          autoTasksState.stats.errors++;
+          autoLog(`[晚寝] ${id} 失败：${autoMessage(result)}`);
+        }
+      } catch (e) {
+        autoTasksState.stats.errors++;
+        autoLog(`[晚寝] ${id} 异常：${e.message}`);
+      }
+    }
+  }
+
+  async function autoRunRound(context, tasks) {
+    if (tasks.leave) {
+      try { await autoRunLeave(context, config.autoConfig.address); } catch (e) { autoTasksState.stats.errors++; autoLog(`[销假] 轮询异常：${e.message}`); }
+    }
+    if (tasks.activity) {
+      try { await autoRunActivity(context); } catch (e) { autoTasksState.stats.errors++; autoLog(`[活动] 轮询异常：${e.message}`); }
+    }
+    if (tasks.holiday) {
+      try { await autoRunHoliday(context); } catch (e) { autoTasksState.stats.errors++; autoLog(`[假期] 轮询异常：${e.message}`); }
+    }
+    if (tasks.punch) {
+      try { await autoRunPunch(context); } catch (e) { autoTasksState.stats.errors++; autoLog(`[晚寝] 轮询异常：${e.message}`); }
+    }
+  }
+
+  function autoTasksFromConfig() {
+    return {
+      leave: config.autoConfig.leave,
+      activity: config.autoConfig.activity,
+      holiday: config.autoConfig.holiday,
+      punch: config.autoConfig.punch
+    };
+  }
+
+  function autoNotifyUi() {
+    if (autoTasksState.ui && autoTasksState.ui.container && autoTasksState.ui.container.isConnected) autoTasksState.ui.update();
+  }
+
+  async function autoRunOneRound(context) {
+    autoTasksState.roundCount++;
+    autoLog(`开始第 ${autoTasksState.roundCount} 轮自动任务`);
+    await autoRunRound(context, autoTasksFromConfig());
+    autoLog(`第 ${autoTasksState.roundCount} 轮完成`);
+    autoNotifyUi();
+  }
+
+  function autoStartTasks(context) {
+    autoTasksState.running = true;
+    autoTasksState.roundCount = 0;
+    autoTasksState.successKeys.clear();
+    autoTasksState.stats = { leave: 0, activitySignin: 0, activitySignout: 0, holidayLeave: 0, holidayArrive: 0, holidayBack: 0, punch: 0, errors: 0 };
+    autoTasksState.logs = [];
+    autoNotifyUi();
+    autoRunOneRound(context);
+    if (autoTasksState.timer) window.clearInterval(autoTasksState.timer);
+    autoTasksState.timer = window.setInterval(() => autoRunOneRound(context), config.autoConfig.interval);
+    localLog('log', `自动任务已启动，每 ${config.autoConfig.interval}ms 轮询一次`);
+  }
+
+  function autoStopTasks() {
+    autoTasksState.running = false;
+    if (autoTasksState.timer) {
+      window.clearInterval(autoTasksState.timer);
+      autoTasksState.timer = null;
+    }
+    autoLog('自动任务已停止');
+    localLog('log', '自动任务已停止');
+    autoNotifyUi();
+  }
+
+  function renderAutoTasks(container, context) {
+    container.innerHTML = `
+      <div class="tool-head"><button class="secondary tool-back">返回工具箱</button><h4>自动任务</h4></div>
+      <div class="auto-config">
+        <div class="auto-toggles">
+          <label><input type="checkbox" id="autoLeave"> 销假</label>
+          <label><input type="checkbox" id="autoActivity"> 活动签到签退</label>
+          <label><input type="checkbox" id="autoHoliday"> 假期登记(离校/到达/返校)</label>
+          <label><input type="checkbox" id="autoPunch"> 晚寝签到</label>
+        </div>
+        <label>销假默认地址<input id="autoAddress" placeholder="记录无地址时使用，如：厦门华夏"></label>
+        <label>轮询间隔(毫秒)<input id="autoInterval" type="number" value="${config.autoConfig.interval}" min="${AUTO_INTERVAL_MIN}"></label>
+        <label class="auto-start-on-load"><input type="checkbox" id="autoStartOnLoad"> 脚本启动时自动启动</label>
+      </div>
+      <div class="actions">
+        <button id="autoStart">开始自动任务</button>
+        <button id="autoRunOnce" class="secondary">立即执行一轮</button>
+        <button id="autoStop" class="danger" disabled>停止</button>
+      </div>
+      <div id="autoStatus" class="auto-status"></div>
+      <div id="autoStats" class="auto-stats"></div>
+      <div id="autoLog" class="auto-log"></div>
+    `;
+    container.querySelector('.tool-back').onclick = context.back;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .auto-config{border:1px solid #cbd5e1;border-radius:9px;padding:10px;background:#f8fafc;margin-top:8px}
+      .auto-toggles{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+      .auto-toggles label{display:inline-flex;align-items:center;gap:4px;margin:0}
+      .auto-start-on-load{display:inline-flex;align-items:center;gap:4px;margin-top:2px}
+      .auto-status{margin-top:8px;font-size:12px;color:#334155;white-space:pre-wrap}
+      .auto-stats{margin-top:6px;font-size:12px;color:#475569;white-space:pre-wrap}
+      .auto-log{margin-top:8px;max-height:200px;overflow:auto;font-size:11px;color:#64748b;white-space:pre-wrap;word-break:break-word;border-top:1px solid #e2e8f0;padding-top:6px}
+    `;
+    container.appendChild(style);
+
+    const statusEl = container.querySelector('#autoStatus');
+    const statsEl = container.querySelector('#autoStats');
+    const logEl = container.querySelector('#autoLog');
+    const startBtn = container.querySelector('#autoStart');
+    const stopBtn = container.querySelector('#autoStop');
+
+    const update = () => {
+      const s = autoTasksState.stats;
+      statusEl.textContent = autoTasksState.running
+        ? `状态：运行中（已执行 ${autoTasksState.roundCount} 轮，每 ${config.autoConfig.interval}ms 轮询）`
+        : `状态：${autoTasksState.roundCount > 0 ? `已停止（共执行 ${autoTasksState.roundCount} 轮）` : '未启动'}`;
+      statsEl.textContent = [
+        `销假成功：${s.leave}`,
+        `活动签到：${s.activitySignin}  活动签退：${s.activitySignout}`,
+        `离校：${s.holidayLeave}  到达：${s.holidayArrive}  返校：${s.holidayBack}`,
+        `晚寝签到：${s.punch}  失败/异常：${s.errors}`
+      ].join('\n');
+      logEl.textContent = autoTasksState.logs.slice(-60).join('\n') || '暂无日志';
+      logEl.scrollTop = logEl.scrollHeight;
+      startBtn.disabled = autoTasksState.running;
+      stopBtn.disabled = !autoTasksState.running;
+    };
+
+    autoTasksState.ui = { container, update };
+
+    container.querySelector('#autoLeave').checked = config.autoConfig.leave;
+    container.querySelector('#autoActivity').checked = config.autoConfig.activity;
+    container.querySelector('#autoHoliday').checked = config.autoConfig.holiday;
+    container.querySelector('#autoPunch').checked = config.autoConfig.punch;
+    container.querySelector('#autoAddress').value = config.autoConfig.address || '';
+    container.querySelector('#autoInterval').value = config.autoConfig.interval;
+    container.querySelector('#autoStartOnLoad').checked = !!config.autoConfig.autoStartOnLoad;
+
+    const saveForm = () => {
+      config.autoConfig.leave = container.querySelector('#autoLeave').checked;
+      config.autoConfig.activity = container.querySelector('#autoActivity').checked;
+      config.autoConfig.holiday = container.querySelector('#autoHoliday').checked;
+      config.autoConfig.punch = container.querySelector('#autoPunch').checked;
+      config.autoConfig.address = container.querySelector('#autoAddress').value.trim();
+      config.autoConfig.interval = Math.max(AUTO_INTERVAL_MIN, Number(container.querySelector('#autoInterval').value) || AUTO_DEFAULT_INTERVAL);
+      config.autoConfig.autoStartOnLoad = container.querySelector('#autoStartOnLoad').checked;
+      saveConfig();
+    };
+
+    startBtn.onclick = () => {
+      saveForm();
+      autoStartTasks(context);
+    };
+
+    stopBtn.onclick = autoStopTasks;
+
+    container.querySelector('#autoRunOnce').onclick = () => {
+      saveForm();
+      autoRunOneRound(context);
+    };
+
+    update();
+  }
 
   // 主动API请求层，绕过页面CORS限制；页面Hook仍然使用原生XHR/fetch。
   function requestWithCurrentIdentity(options) {
@@ -2237,7 +3351,7 @@
       headers: '{}',
       body: ''
     };
-    container.innerHTML = `<h4>API调试</h4><label>名称<input id="apiName" placeholder="例如：活动检查接口"></label><label>类型<select id="apiMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></label><label>接口<input id="apiUrl" placeholder="/studentwork/api"></label><label>请求头<textarea id="apiHeaders" rows="3">{}</textarea></label><label>数据<textarea id="apiBody" rows="6" placeholder="Statues=0&key=&Year=2627&Term=0&_search=false&nd=1784946876240&rows=12&page=1&sidx=&sord=asc"></textarea></label><div class="actions"><button id="sendApi">发送请求</button><button class="secondary" id="saveApi">保存API</button><button class="secondary" id="loadApi">加载API</button></div><div id="savedApiList"></div><pre id="apiResult">等待请求</pre>`;
+    container.innerHTML = `<h4>API调试 <small style="color:#64748b">支持 m.hxxy.edu.cn 老式PHP接口（返回HTML也会记录）</small></h4><label>名称<input id="apiName" placeholder="例如：活动检查接口"></label><label>类型<select id="apiMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></label><label>接口<input id="apiUrl" placeholder="https://m.hxxy.edu.cn/xxx.php 或 /studentwork/api"></label><label>请求头<textarea id="apiHeaders" rows="3">{}</textarea></label><label>数据<textarea id="apiBody" rows="6" placeholder="Statues=0&key=&Year=2627&Term=0&_search=false&nd=1784946876240&rows=12&page=1&sidx=&sord=asc"></textarea></label><div class="actions"><button id="sendApi">发送请求</button><button class="secondary" id="saveApi">保存API</button><button class="secondary" id="loadApi">加载API</button></div><div id="savedApiList"></div><pre id="apiResult">等待请求</pre>`;
     setInput(container, 'apiName', item.name);
     setInput(container, 'apiMethod', item.method);
     setInput(container, 'apiUrl', item.url);
@@ -2416,6 +3530,11 @@
     return next;
   }
 
+  const truncateForLog = (text, limit = 30000) => {
+    const str = String(text == null ? '' : text);
+    return str.length > limit ? str.slice(0, limit) + `\n...(已截断，共 ${str.length} 字符)` : str;
+  };
+
   function renderLogDetail(container, item, row) {
     const old = row.querySelector('.log-detail');
     if (old) {
@@ -2428,7 +3547,7 @@
     const initialBody = item.requestBody || splitRequest.body;
     const detail = document.createElement('div');
     detail.className = 'log-detail editor';
-    detail.innerHTML = `<label>类型<select class="replay-method"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>PATCH</option></select></label><label>接口<input class="replay-url"></label><label>请求头<textarea class="replay-headers" rows="4">{}</textarea></label><label>数据<textarea class="replay-body" rows="6"></textarea></label><div class="actions"><button class="replay-request">发起请求</button><button class="secondary save-detail-api">保存API</button></div><pre class="replay-result">原始响应：\n${esc(formatResponse(item.originalResponse))}\n\n修改后响应：\n${esc(formatResponse(item.modifiedResponse))}</pre>`;
+    detail.innerHTML = `<label>类型<select class="replay-method"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>PATCH</option></select></label><label>接口<input class="replay-url"></label><label>请求头<textarea class="replay-headers" rows="4">{}</textarea></label><label>数据<textarea class="replay-body" rows="6"></textarea></label><div class="actions"><button class="replay-request">发起请求</button><button class="secondary save-detail-api">保存API</button></div><pre class="replay-result">原始响应：\n${esc(truncateForLog(formatResponse(item.originalResponse)))}\n\n修改后响应：\n${esc(truncateForLog(formatResponse(item.modifiedResponse)))}</pre>`;
     detail.querySelector('.replay-method').value = item.method || 'GET';
     detail.querySelector('.replay-url').value = splitRequest.url;
     detail.querySelector('.replay-body').value = initialBody;
@@ -2688,7 +3807,7 @@
       style.textContent = `:host{position:fixed;display:block;width:42px;height:42px;z-index:2147483647;opacity:.9;font-family:Arial,sans-serif;color:#1f2937;pointer-events:none}*{box-sizing:border-box}button{border:0;border-radius:6px;padding:7px 10px;background:#2563eb;color:white;cursor:pointer;font-size:12px}.toggle,.panel{pointer-events:auto}.toggle{width:42px;height:42px;border-radius:50%;padding:0;box-shadow:0 4px 16px #0004;font-size:18px}.panel{display:none;position:fixed;width:min(410px, calc(100vw - 16px));max-width:calc(100vw - 16px);max-height:min(76vh, calc(100vh - 16px));overflow:auto;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 10px 32px #0004;padding:14px;margin:0}.panel.open{display:block}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;cursor:move;touch-action:none}.secondary{background:#64748b}.danger{background:#dc2626}h3{margin:0;font-size:16px}h4{margin:14px 0 6px;font-size:13px}.status{display:grid;grid-template-columns:1fr 1fr;gap:5px;font-size:12px;background:#f1f5f9;padding:8px;border-radius:6px}.actions{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.rule,.saved-api,.tool-item{border-top:1px solid #e2e8f0;padding:7px 0;font-size:12px}.rule button{float:right;padding:3px 6px}.tool-item{display:flex;align-items:center;justify-content:space-between;gap:10px}.tool-item div{flex:1}.tool-item b,.tool-item small{display:block}.tool-item small{color:#64748b;margin-top:3px}.tool-head{display:flex;align-items:center;gap:10px;border-bottom:1px solid #e2e8f0;padding-bottom:6px}.tool-head h4{flex:1;margin:0}.log{border-top:1px solid #e2e8f0;padding:7px 0;font-size:11px;cursor:pointer;position:relative}.log small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}.log .save-log{position:absolute;right:0;top:9px;padding:3px 6px}.saved-api{display:flex;gap:5px;align-items:center}.saved-api span{flex:1;overflow:hidden;text-overflow:ellipsis}.saved-api small{display:block;color:#64748b}pre{white-space:pre-wrap;word-break:break-word;background:#0f172a;color:#e2e8f0;padding:8px;border-radius:6px;max-height:260px;overflow:auto;font-size:11px}label{display:block;margin:6px 0;font-size:12px}input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:6px;font:12px Arial;background:white;color:#111827}input[type=checkbox]{width:auto}.editor{border:1px solid #93c5fd;background:#eff6ff;padding:8px;border-radius:6px;margin:6px 0}`;
       shadow.appendChild(style);
       const root = document.createElement('div');
-      root.innerHTML = '<button class="toggle" title="打开Zhang华夏系统增强工具">华夏</button><section class="panel"><div class="head"><h3>Zhang华夏系统增强</h3><button class="secondary close">收起</button></div><div class="status"></div><div class="actions"><button class="toolbox">工具箱</button><button class="logs">API日志</button><button class="api">API调试</button><button class="rules">重写规则</button><button class="copy-cookies">复制Cookies</button><button class="settings">设置</button></div><div class="content"></div></section>';
+      root.innerHTML = '<button class="toggle" title="打开Zhang华夏系统增强工具">华夏</button><section class="panel"><div class="head"><h3>Zhang华夏系统增强</h3><button class="secondary close">收起</button></div><div class="status"></div><div class="actions"><button class="auto">自动</button><button class="toolbox">工具箱</button><button class="logs">API日志</button><button class="api">API调试</button><button class="rules">重写规则</button><button class="copy-cookies">复制Cookies</button><button class="settings">设置</button></div><div class="content"></div></section>';
       shadow.appendChild(root);
       const panel = root.querySelector('.panel');
       const head = root.querySelector('.head');
@@ -2721,7 +3840,9 @@
         host.style.setProperty('height', '42px', 'important');
         if (open) {
           renderPanel();
-          renderToolbox(root.querySelector('.content'));
+          const content = root.querySelector('.content');
+          // 首次打开默认显示工具箱；关闭后重开保持上次面板，不自行跳转
+          if (!content.dataset.view && !content.innerHTML) renderToolbox(content);
           requestAnimationFrame(updatePanelPlacement);
         }
       };
@@ -2730,12 +3851,41 @@
         host.style.setProperty('width', '42px', 'important');
         host.style.setProperty('height', '42px', 'important');
       };
-      root.querySelector('.toolbox').onclick = () => renderToolbox(root.querySelector('.content'));
+      const openAutoTasks = () => {
+        const content = root.querySelector('.content');
+        content.dataset.view = 'auto';
+        const ctx = {
+          request: requestWithCurrentIdentity,
+          showResult: () => {},
+          openInternalPage: () => {},
+          reload: () => openAutoTasks(),
+          back: () => renderToolbox(content)
+        };
+        renderAutoTasks(content, ctx);
+      };
+      root.querySelector('.auto').onclick = openAutoTasks;
+      root.querySelector('.toolbox').onclick = () => {
+        const content = root.querySelector('.content');
+        content.dataset.view = 'toolbox';
+        renderToolbox(content);
+      };
       root.querySelector('.logs').onclick = () => renderLogs(root.querySelector('.content'));
-      root.querySelector('.rules').onclick = () => renderRules(root.querySelector('.content'));
-      root.querySelector('.api').onclick = () => renderApiTest(root.querySelector('.content'));
+      root.querySelector('.rules').onclick = () => {
+        const content = root.querySelector('.content');
+        content.dataset.view = 'rules';
+        renderRules(content);
+      };
+      root.querySelector('.api').onclick = () => {
+        const content = root.querySelector('.content');
+        content.dataset.view = 'api';
+        renderApiTest(content);
+      };
       root.querySelector('.copy-cookies').onclick = () => copyCurrentCookies(root.querySelector('.content'));
-      root.querySelector('.settings').onclick = () => renderSettings(root.querySelector('.content'));
+      root.querySelector('.settings').onclick = () => {
+        const content = root.querySelector('.content');
+        content.dataset.view = 'settings';
+        renderSettings(content);
+      };
       const beginDragging = (e, source, allowButton) => {
         if (e.button !== 0 || (!allowButton && e.target.closest && e.target.closest('button'))) return;
         const rect = toggle.getBoundingClientRect();
@@ -2812,13 +3962,23 @@
     const host = document.getElementById('hxxy-enhancer-host');
     if (!host || !host.shadowRoot) return;
     const status = host.shadowRoot.querySelector('.status');
-    if (status) status.innerHTML = `<div>Hook: <b>${config.hookEnabled && config.apiEnabled ? 'ON' : 'OFF'}</b></div><div>字段修补: <b>${config.domPatchEnabled ? 'ON' : 'OFF'}</b></div><div>API规则: <b>${config.rules.filter(x => x.enabled).length}</b></div><div>日志: <b>${logs.length}</b></div>`;
+    if (status) status.innerHTML = `<div>Hook: <b>${config.hookEnabled && config.apiEnabled ? 'ON' : 'OFF'}</b></div><div>字段修补: <b>${config.domPatchEnabled ? 'ON' : 'OFF'}</b></div><div>API规则: <b>${config.rules.filter(x => x.enabled).length}</b></div><div>自动任务: <b>${autoTasksState.running ? '运行中' : 'OFF'}</b></div><div>日志: <b>${logs.length}</b></div>`;
     const content = host.shadowRoot.querySelector('.content');
-    if (content && !content.innerHTML) renderLogs(content);
+    // 默认定位到工具箱；已有视图或内容时保持不动
+    if (content && !content.dataset.view && !content.innerHTML) renderToolbox(content);
   }
 
   startWatchdog();
   startDomPatch();
   createPanel();
+  if (config.autoConfig.autoStartOnLoad) {
+    autoStartTasks({
+      request: requestWithCurrentIdentity,
+      showResult: () => {},
+      openInternalPage: () => {},
+      reload: () => {},
+      back: () => {}
+    });
+  }
   localLog('log', `华夏系统增强工具 ${VERSION} 已启动`);
 })();
