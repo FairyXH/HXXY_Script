@@ -1903,9 +1903,9 @@
             <label>
                 选择价位
                 <select id="ssyxSelectPrice">
-                    <option value="1500">1500</option>
                     <option value="3000">3000</option>
                     <option value="4000">4000</option>
+                    <option value="1500">1500</option>
                 </select>
             </label>
             <label>
@@ -1918,7 +1918,7 @@
                     id="ssyxInterval"
                     type="number"
                     min="0"
-                    value="5100">
+                    value="100">
             </label>
             <label>
                 <input type="checkbox" id="ssyxScheduleEnable">
