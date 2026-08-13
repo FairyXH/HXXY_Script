@@ -2117,7 +2117,171 @@
             }
         };
     }
-}
+},
+    //(迎新)家庭信息
+    {
+      id: 'welcome-family-index',
+      name: '(迎新)家庭信息',
+      description: '通过迎新接口设置家庭信息：地区编码、地址、监护人电话、收入、家庭类型。',
+      render(container, context) {
+        container.innerHTML = `
+            <div class="tool-head">
+                <button class="secondary tool-back">返回工具箱</button>
+                <h4>设置家庭信息</h4>
+            </div>
+            <label>
+                地区编码
+                <input id="familyAreaCode" placeholder="如 350213">
+            </label>
+            <label>
+                地址
+                <input id="familyAddress" placeholder="请输入家庭地址">
+            </label>
+            <label>
+                监护人电话
+                <input id="familyPhone" placeholder="请输入监护人电话">
+            </label>
+            <label>
+                家庭收入
+                <input id="familyIncome" type="number" step="0.01" placeholder="如 50000">
+            </label>
+            <label>
+                家庭类型
+                <input id="familyType" type="number" min="1" placeholder="如 1（双亲健全）">
+            </label>
+            <div class="actions">
+                <button id="submitFamilyInfo">保存家庭信息</button>
+            </div>
+            <pre id="familyInfoResult">等待提交</pre>
+        `;
+        container.querySelector('.tool-back').onclick = context.back;
+        container.querySelector('#submitFamilyInfo').onclick = async () => {
+          const areaCode = container.querySelector('#familyAreaCode').value.trim();
+          const address = container.querySelector('#familyAddress').value.trim();
+          const phone = container.querySelector('#familyPhone').value.trim();
+          const income = container.querySelector('#familyIncome').value.trim();
+          const type = container.querySelector('#familyType').value.trim();
+          const result = container.querySelector('#familyInfoResult');
+          if (!areaCode || !address || !phone || !income || !type) {
+            result.textContent = '请填写全部字段';
+            return;
+          }
+          result.textContent = '正在提交...';
+          try {
+            const response = await context.request({
+              method: 'POST',
+              url: 'https://plat.hxxy.edu.cn/welcome/WelcomeAppMStudent/FamilyIndex',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: new URLSearchParams({
+                HomeAddressAreaCodeView: areaCode,
+                HomeAddress: address,
+                HomePhone: phone,
+                HomeIncome: income,
+                HomeTypeView: type
+              }).toString()
+            });
+            if (response.error) {
+              result.textContent = `请求失败：${response.error}`;
+              return;
+            }
+            let json;
+            try {
+              json = JSON.parse(response.text);
+            } catch (e) {
+              context.showResult(result, response);
+              return;
+            }
+            const message = json && (json.msg || json.message);
+            result.textContent = json && json.isok === true
+              ? `保存成功${message ? `：${message}` : ''}`
+              : `保存失败${message ? `：${message}` : `：HTTP ${response.status}`}`;
+          } catch (e) {
+            result.textContent = `提交异常：${e.message}`;
+          }
+        };
+      }
+    },
+    //(迎新)联系信息
+    {
+      id: 'welcome-contact-info',
+      name: '(迎新)联系信息',
+      description: '通过迎新接口设置联系信息：手机号、邮箱、QQ、微信号。',
+      render(container, context) {
+        container.innerHTML = `
+            <div class="tool-head">
+                <button class="secondary tool-back">返回工具箱</button>
+                <h4>设置联系信息</h4>
+            </div>
+            <label>
+                手机号
+                <input id="contactPhone" placeholder="请输入手机号">
+            </label>
+            <label>
+                邮箱
+                <input id="contactEmail" placeholder="请输入邮箱">
+            </label>
+            <label>
+                QQ
+                <input id="contactQQ" placeholder="请输入QQ号">
+            </label>
+            <label>
+                微信号
+                <input id="contactWX" placeholder="请输入微信号">
+            </label>
+            <div class="actions">
+                <button id="submitContactInfo">保存联系信息</button>
+            </div>
+            <pre id="contactInfoResult">等待提交</pre>
+        `;
+        container.querySelector('.tool-back').onclick = context.back;
+        container.querySelector('#submitContactInfo').onclick = async () => {
+          const phone = container.querySelector('#contactPhone').value.trim();
+          const email = container.querySelector('#contactEmail').value.trim();
+          const qq = container.querySelector('#contactQQ').value.trim();
+          const wx = container.querySelector('#contactWX').value.trim();
+          const result = container.querySelector('#contactInfoResult');
+          if (!phone || !email) {
+            result.textContent = '请至少填写手机号和邮箱';
+            return;
+          }
+          result.textContent = '正在提交...';
+          try {
+            const response = await context.request({
+              method: 'POST',
+              url: 'https://plat.hxxy.edu.cn/welcome/WelcomeAppMStudent/PhonePost',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: new URLSearchParams({
+                Phone: phone,
+                Email: email,
+                QQ: qq,
+                WXName: wx
+              }).toString()
+            });
+            if (response.error) {
+              result.textContent = `请求失败：${response.error}`;
+              return;
+            }
+            let json;
+            try {
+              json = JSON.parse(response.text);
+            } catch (e) {
+              context.showResult(result, response);
+              return;
+            }
+            const message = json && (json.msg || json.message);
+            result.textContent = json && json.isok === true
+              ? `保存成功${message ? `：${message}` : ''}`
+              : `保存失败${message ? `：${message}` : `：HTTP ${response.status}`}`;
+          } catch (e) {
+            result.textContent = `提交异常：${e.message}`;
+          }
+        };
+      }
+    },
   ];
   // ---------- 自动任务：后台轮询 销假 / 活动签到签退 / 假期登记 / 晚寝签到 ----------
   const AUTO_INTERVAL_MIN = 1000;
