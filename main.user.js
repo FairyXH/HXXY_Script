@@ -1913,9 +1913,11 @@
                 <input id="ssyxCustomPrice" placeholder="例如1500">
             </label>
             <label>
-                请求间隔(ms)
+                请求间隔(ms)（0为不限制）
                 <input 
                     id="ssyxInterval"
+                    type="number"
+                    min="0"
                     value="5100">
             </label>
             <label>
@@ -2036,16 +2038,18 @@
                     parseInt(intervalInput.value);
                 if(
                     isNaN(interval) ||
-                    interval < 1000
+                    interval < 0
                 ){
-                    interval=5100;
+                    interval=0;
                 }
-                await new Promise(resolve=>{
-                    setTimeout(
-                        resolve,
-                        interval
-                    );
-                });
+                if(interval > 0){
+                    await new Promise(resolve=>{
+                        setTimeout(
+                            resolve,
+                            interval
+                        );
+                    });
+                }
             }
         }
         function startRunning(){
