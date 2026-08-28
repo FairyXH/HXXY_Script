@@ -302,7 +302,7 @@
       url: 'https://me.hxxy.edu.cn/studentwork/LessonActivity',
       xpath: '/html/body/div[3]/div/div/div/div/div/div[3]/div[5]/table/tbody/tr[4]/td[3]/button[1]',
       xpathMode: 'fuzzy-first',
-      insertMode: 'replace',
+      insertMode: 'after',
       preserveOnclickArguments: true,
       replaceOnclickFunction: 'addVolunteer',
       replaceText: '志愿者',
@@ -362,6 +362,12 @@
         const fragment = doc.createDocumentFragment();
         nodes.forEach(node => fragment.appendChild(node));
         host.parentNode.replaceChild(fragment, host);
+      } else if (tool.insertMode === 'after') {
+        if (!host.parentNode || !nodes.length) return;
+        const fragment = doc.createDocumentFragment();
+        nodes.forEach(node => fragment.appendChild(node));
+        host.parentNode.insertBefore(fragment, host.nextSibling);
+        host.setAttribute(marker, '1');
       } else {
         host.append(...nodes);
         host.setAttribute(marker, '1');
