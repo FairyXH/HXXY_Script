@@ -287,8 +287,49 @@
     } catch (e) {}
     localLog('log', `字段 ${fieldId} 已修改为 "${targetValue}"`);
   }
+  function patchAssessmentRankingToolbar(doc) {
+    if (!doc || !doc.defaultView) return;
+    let pageUrl = '';
+    try {
+      pageUrl = doc.defaultView.location.href || '';
+    } catch (e) {
+      return;
+    }
+    if (pageUrl.indexOf('https://me.hxxy.edu.cn/studentwork/HXAssessmentRanking') === -1) return;
+    let toolbar;
+    try {
+      toolbar = doc.evaluate(
+        '/html/body/div[3]/div[2]/div/div/div/form/div/div[8]',
+        doc,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+    } catch (e) {
+      return;
+    }
+    if (!toolbar || toolbar.nodeType !== 1) return;
+    const addToolButton = (action, text) => {
+      const marker = `data-hxxy-action-${action}`;
+      if (toolbar.querySelector(`[${marker}]`)) return;
+      const button = doc.createElement('button');
+      button.id = 'tool-add';
+      button.setAttribute('onclick', `${action}(value)`);
+      button.className = 'btn btn-sm btn-info';
+      button.type = 'button';
+      button.setAttribute(marker, '1');
+      const icon = doc.createElement('i');
+      icon.className = 'fa fa-clone';
+      button.appendChild(icon);
+      button.appendChild(doc.createTextNode(text));
+      toolbar.appendChild(button);
+    };
+    addToolButton('batchstu', '批量审批');
+    addToolButton('batchdel', '批量删除');
+  }
   function patchDocument(doc, root = doc) {
     if (!config.domPatchEnabled || !doc || !root) return;
+    patchAssessmentRankingToolbar(doc);
     for (const [fieldId, targetValue] of Object.entries(fieldsMap)) {
       let nodes = [];
       try {
