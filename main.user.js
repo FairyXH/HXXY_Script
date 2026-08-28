@@ -287,8 +287,8 @@
     } catch (e) {}
     localLog('log', `字段 ${fieldId} 已修改为 "${targetValue}"`);
   }
-  // 内嵌页面工具注册表：新增工具只需填写 url、xpath 和 html。
-  // url 默认按 contains 匹配；xpathMode 为 fuzzy 时会忽略路径中的数字下标，并对所有匹配节点插入。
+  // 内嵌页面工具注册表：新增工具只需填写 url、xpath、html 和插入模式。
+  // url 默认按 contains 匹配；xpathMode 为 fuzzy 时忽略全部数字下标，fuzzy-first 保留末级 [1]。
   const embeddedHtmlTools = [
     {
       id: 'assessment-ranking-batch-actions',
@@ -296,12 +296,28 @@
       xpath: '/html/body/div[3]/div[2]/div/div/div/form/div/div[8]',
       xpathMode: 'fuzzy',
       html: '<button id="tool-add" onclick="batchstu(value)" class="btn btn-sm btn-info" type="button"><i class="fa fa-clone"></i>批量审批</button><button id="tool-add" onclick="batchdel(value)" class="btn btn-sm btn-info" type="button"><i class="fa fa-clone"></i>批量删除</button>'
+    },
+    {
+      id: 'lesson-activity-volunteer',
+      url: 'https://me.hxxy.edu.cn/studentwork/LessonActivity',
+      xpath: '/html/body/div[3]/div/div/div/div/div/div[3]/div[5]/table/tbody/tr[4]/td[3]/button[1]',
+      xpathMode: 'fuzzy-first',
+      insertMode: 'replace',
+      preserveOnclickArguments: true,
+      replaceOnclickFunction: 'addVolunteer',
+      replaceText: '志愿者',
+      html: '<button onclick="info(\'12033\')" class="btn btn-xs btn-outline btn-info" type="button">详情</button>'
     }
   ];
   function getEmbeddedToolHosts(doc, xpath, mode) {
     if (!doc || !xpath) return [];
     let expression = String(xpath);
     if (mode === 'fuzzy') expression = expression.replace(/\[\d+\]/g, '');
+    if (mode === 'fuzzy-first') {
+      const parts = expression.split('/');
+      const last = parts.length - 1;
+      expression = parts.map((part, index) => index === last ? part : part.replace(/\[\d+\]/g, '')).join('/');
+    }
     try {
       const xpathResult = (doc.defaultView && doc.defaultView.XPathResult) || XPathResult;
       const result = doc.evaluate(expression, doc, null, xpathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
@@ -315,17 +331,41 @@
       return [];
     }
   }
+  function createEmbeddedToolNodes(doc, tool, source) {
+    const template = doc.createElement('template');
+    template.innerHTML = String(tool.html || '');
+    const nodes = Array.from(template.content.childNodes).filter(node => node.nodeType === 1);
+    if (!nodes.length) return [];
+    nodes.forEach(node => {
+      if (tool.replaceText != null) node.textContent = String(tool.replaceText);
+      if (tool.replaceOnclickFunction && tool.preserveOnclickArguments) {
+        const onclick = node.getAttribute('onclick');
+        const sourceOnclick = source && source.getAttribute ? source.getAttribute('onclick') : '';
+        const match = String(sourceOnclick || onclick || '').match(/^\s*[\w$]+\s*\(([^]*)\)\s*;?\s*$/);
+        if (match) node.setAttribute('onclick', `${tool.replaceOnclickFunction}(${match[1]})`);
+      } else if (tool.replaceOnclickFunction) {
+        const onclick = node.getAttribute('onclick');
+        if (onclick) node.setAttribute('onclick', onclick.replace(/^\s*[\w$]+\s*\(/, `${tool.replaceOnclickFunction}(`));
+      }
+    });
+    return nodes;
+  }
   function insertEmbeddedHtmlTool(doc, tool, host) {
     if (!host || host.nodeType !== 1 || !tool || !tool.id) return;
     const marker = `data-hxxy-tool-${String(tool.id).replace(/[^a-zA-Z0-9_-]/g, '-')}`;
     if (host.hasAttribute(marker)) return;
     try {
-      const template = doc.createElement('template');
-      template.innerHTML = String(tool.html || '');
-      const fragment = template.content;
-      Array.from(fragment.children).forEach(node => node.setAttribute(marker, '1'));
-      host.appendChild(fragment);
-      host.setAttribute(marker, '1');
+      const nodes = createEmbeddedToolNodes(doc, tool, host);
+      nodes.forEach(node => node.setAttribute(marker, '1'));
+      if (tool.insertMode === 'replace') {
+        if (!host.parentNode || !nodes.length) return;
+        const fragment = doc.createDocumentFragment();
+        nodes.forEach(node => fragment.appendChild(node));
+        host.parentNode.replaceChild(fragment, host);
+      } else {
+        host.append(...nodes);
+        host.setAttribute(marker, '1');
+      }
     } catch (e) {}
   }
   function patchEmbeddedHtmlTools(doc) {
