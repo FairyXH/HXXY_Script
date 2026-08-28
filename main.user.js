@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         华夏系统增强工具
 // @namespace    hxxy-enhancer
-// @version      5.8.3
+// @version      5.8.4
 // @description  华夏系统增强工具
 // @author     	 Zhang
 // @license    	 MIT
