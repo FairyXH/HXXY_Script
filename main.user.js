@@ -294,7 +294,7 @@
       id: 'assessment-ranking-batch-actions',
       url: 'https://me.hxxy.edu.cn/studentwork/HXAssessmentRanking',
       xpath: '/html/body/div[3]/div[2]/div/div/div/form/div/div[8]',
-      xpathMode: 'fuzzy',
+      xpathMode: 'exact',
       html: '<button id="tool-add" onclick="batchstu(value)" class="btn btn-sm btn-info" type="button"><i class="fa fa-clone"></i>批量审批</button><button id="tool-add" onclick="batchdel(value)" class="btn btn-sm btn-info" type="button"><i class="fa fa-clone"></i>批量删除</button>'
     },
     {
@@ -368,6 +368,40 @@
       }
     } catch (e) {}
   }
+  // 内嵌页面 JavaScript 注册表：新增函数只需填写 url 和 code。
+  const embeddedJavascriptTools = [
+    {
+      id: 'lesson-activity-add-volunteer-function',
+      url: 'https://me.hxxy.edu.cn/studentwork/LessonActivity',
+      code: `function addVolunteer(id) {
+            window.location.href = "/studentwork/LessonActivity/ActivityVolunteer?ActivityId=" + id;
+        }`
+    }
+  ];
+  const injectedJavascriptTools = new WeakSet();
+  function patchEmbeddedJavascriptTools(doc) {
+    if (!doc || !doc.defaultView || injectedJavascriptTools.has(doc)) return;
+    let pageUrl = '';
+    try {
+      pageUrl = doc.defaultView.location.href || '';
+    } catch (e) {
+      return;
+    }
+    const codes = embeddedJavascriptTools
+      .filter(tool => tool && tool.url && pageUrl.indexOf(String(tool.url)) !== -1)
+      .map(tool => String(tool.code || '').trim())
+      .filter(Boolean);
+    if (!codes.length) return;
+    const parent = doc.head || doc.documentElement || doc.body;
+    if (!parent) return;
+    try {
+      const script = doc.createElement('script');
+      script.textContent = codes.join('\n\n');
+      parent.appendChild(script);
+      script.remove();
+      injectedJavascriptTools.add(doc);
+    } catch (e) {}
+  }
   function patchEmbeddedHtmlTools(doc) {
     if (!doc || !doc.defaultView) return;
     let pageUrl = '';
@@ -383,6 +417,7 @@
   }
   function patchDocument(doc, root = doc) {
     if (!config.domPatchEnabled || !doc || !root) return;
+    patchEmbeddedJavascriptTools(doc);
     patchEmbeddedHtmlTools(doc);
     for (const [fieldId, targetValue] of Object.entries(fieldsMap)) {
       let nodes = [];
