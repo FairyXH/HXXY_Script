@@ -287,7 +287,48 @@
     } catch (e) {}
     localLog('log', `字段 ${fieldId} 已修改为 "${targetValue}"`);
   }
-  function patchAssessmentRankingToolbar(doc) {
+  // 内嵌页面工具注册表：新增工具只需填写 url、xpath 和 html。
+  // url 默认按 contains 匹配；xpathMode 为 fuzzy 时会忽略路径中的数字下标，并对所有匹配节点插入。
+  const embeddedHtmlTools = [
+    {
+      id: 'assessment-ranking-batch-actions',
+      url: 'https://me.hxxy.edu.cn/studentwork/HXAssessmentRanking',
+      xpath: '/html/body/div[3]/div[2]/div/div/div/form/div/div[8]',
+      xpathMode: 'fuzzy',
+      html: '<button id="tool-add" onclick="batchstu(value)" class="btn btn-sm btn-info" type="button"><i class="fa fa-clone"></i>批量审批</button><button id="tool-add" onclick="batchdel(value)" class="btn btn-sm btn-info" type="button"><i class="fa fa-clone"></i>批量删除</button>'
+    }
+  ];
+  function getEmbeddedToolHosts(doc, xpath, mode) {
+    if (!doc || !xpath) return [];
+    let expression = String(xpath);
+    if (mode === 'fuzzy') expression = expression.replace(/\[\d+\]/g, '');
+    try {
+      const xpathResult = (doc.defaultView && doc.defaultView.XPathResult) || XPathResult;
+      const result = doc.evaluate(expression, doc, null, xpathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+      const hosts = [];
+      for (let index = 0; index < result.snapshotLength; index += 1) {
+        const node = result.snapshotItem(index);
+        if (node && node.nodeType === 1) hosts.push(node);
+      }
+      return hosts;
+    } catch (e) {
+      return [];
+    }
+  }
+  function insertEmbeddedHtmlTool(doc, tool, host) {
+    if (!host || host.nodeType !== 1 || !tool || !tool.id) return;
+    const marker = `data-hxxy-tool-${String(tool.id).replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+    if (host.hasAttribute(marker)) return;
+    try {
+      const template = doc.createElement('template');
+      template.innerHTML = String(tool.html || '');
+      const fragment = template.content;
+      Array.from(fragment.children).forEach(node => node.setAttribute(marker, '1'));
+      host.appendChild(fragment);
+      host.setAttribute(marker, '1');
+    } catch (e) {}
+  }
+  function patchEmbeddedHtmlTools(doc) {
     if (!doc || !doc.defaultView) return;
     let pageUrl = '';
     try {
@@ -295,41 +336,14 @@
     } catch (e) {
       return;
     }
-    if (pageUrl.indexOf('https://me.hxxy.edu.cn/studentwork/HXAssessmentRanking') === -1) return;
-    let toolbar;
-    try {
-      toolbar = doc.evaluate(
-        '/html/body/div[3]/div[2]/div/div/div/form/div/div[8]',
-        doc,
-        null,
-        XPathResult.FIRST_ORDERED_NODE_TYPE,
-        null
-      ).singleNodeValue;
-    } catch (e) {
-      return;
-    }
-    if (!toolbar || toolbar.nodeType !== 1) return;
-    const addToolButton = (action, text) => {
-      const marker = `data-hxxy-action-${action}`;
-      if (toolbar.querySelector(`[${marker}]`)) return;
-      const button = doc.createElement('button');
-      button.id = 'tool-add';
-      button.setAttribute('onclick', `${action}(value)`);
-      button.className = 'btn btn-sm btn-info';
-      button.type = 'button';
-      button.setAttribute(marker, '1');
-      const icon = doc.createElement('i');
-      icon.className = 'fa fa-clone';
-      button.appendChild(icon);
-      button.appendChild(doc.createTextNode(text));
-      toolbar.appendChild(button);
-    };
-    addToolButton('batchstu', '批量审批');
-    addToolButton('batchdel', '批量删除');
+    embeddedHtmlTools.forEach(tool => {
+      if (!tool || !tool.url || pageUrl.indexOf(String(tool.url)) === -1) return;
+      getEmbeddedToolHosts(doc, tool.xpath, tool.xpathMode).forEach(host => insertEmbeddedHtmlTool(doc, tool, host));
+    });
   }
   function patchDocument(doc, root = doc) {
     if (!config.domPatchEnabled || !doc || !root) return;
-    patchAssessmentRankingToolbar(doc);
+    patchEmbeddedHtmlTools(doc);
     for (const [fieldId, targetValue] of Object.entries(fieldsMap)) {
       let nodes = [];
       try {
