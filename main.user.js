@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         华夏系统增强工具
 // @namespace    hxxy-enhancer
-// @version      5.8.4
+// @version      5.8.6
 // @description  华夏系统增强工具
 // @author     	 Zhang
 // @license    	 MIT
@@ -306,7 +306,7 @@
       preserveOnclickArguments: true,
       replaceOnclickFunction: 'addVolunteer',
       replaceText: '志愿者',
-      html: '<button onclick="info(\'12033\')" class="btn btn-xs btn-outline btn-info" type="button">详情</button>'
+      html: '<button onclick="info(\'00000\')" class="btn btn-xs btn-outline btn-info" type="button">详情</button>'
     }
   ];
   function getEmbeddedToolHosts(doc, xpath, mode) {
