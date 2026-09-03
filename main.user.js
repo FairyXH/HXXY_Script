@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         华夏系统增强工具
 // @namespace    hxxy-enhancer
-// @version      5.8.6
+// @version      5.8.8
 // @description  华夏系统增强工具
 // @author     	 Zhang
 // @license    	 MIT
@@ -100,6 +100,14 @@
       mode: 'replaceResponse',
       match: { url: '/studentwork/LessonActivityMobile/VerifyCurUserRole', regex: false },
       response: { lineEnabled: false, headersEnabled: false, bodyEnabled: true, body: 'true' }
+    },
+    {
+      id: 'builtin-force-allpageid-false',
+      enabled: true,
+      name: '(内置)强制 ids==AllPageID 恒为 false',
+      mode: 'modifyResponse',
+      match: { url: 'hxxy.edu.cn', regex: false },
+      modify: { pattern: 'ids\\s*==\\s*"AllPageID"', replacement: 'false', regex: true }
     }
   ];
   function normalizeRule(rule) {
@@ -629,6 +637,62 @@
             if (window.__HX_ENHANCER_PAGE_HOOK__) return;
             window.__HX_ENHANCER_PAGE_HOOK__ = true;
             let state = { config: initialConfig };
+            // 页面源码级强制改写：把内嵌脚本里的 ids == "AllPageID" 统一替换为 false。
+            // 覆盖向量：Function 构造、动态 <script> 文本、接口返回的 HTML 片段（见内置规则），以及已定义的全局函数。
+            const ALL_PAGE_ID_RE = /ids\s*==\s*"AllPageID"/g;
+            const containsAllPageId = source => /ids\s*==\s*"AllPageID"/.test(source);
+            const rewriteSource = code => {
+                if (typeof code !== 'string') return code;
+                return code.replace(ALL_PAGE_ID_RE, 'false');
+            };
+            try {
+                const NativePageFunction = window.Function;
+                const PageRewrittenFunction = function () {
+                    const args = Array.prototype.slice.call(arguments);
+                    if (args.length) {
+                        const last = args.length - 1;
+                        if (typeof args[last] === 'string') args[last] = rewriteSource(args[last]);
+                    }
+                    return NativePageFunction.apply(this, args);
+                };
+                if (typeof NativePageFunction === 'function') {
+                    PageRewrittenFunction.prototype = NativePageFunction.prototype;
+                    window.Function = PageRewrittenFunction;
+                }
+            } catch (e) {}
+            try {
+                const rewriteScriptText = (proto, key) => {
+                    const descriptor = Object.getOwnPropertyDescriptor(proto, key);
+                    if (!descriptor || typeof descriptor.set !== 'function') return;
+                    Object.defineProperty(proto, key, {
+                        configurable: descriptor.configurable,
+                        enumerable: descriptor.enumerable,
+                        get: descriptor.get,
+                        set(value) {
+                            if (typeof value === 'string' && this instanceof HTMLScriptElement) value = rewriteSource(value);
+                            return descriptor.set.call(this, value);
+                        }
+                    });
+                };
+                rewriteScriptText(HTMLScriptElement.prototype, 'text');
+                rewriteScriptText(Node.prototype, 'textContent');
+            } catch (e) {}
+            // 内联 <script> 由解析器直接执行，无法在执行前拦截；这里在定义完成后重写全局函数源码。
+            const rewriteGlobalAllPageId = () => {
+                Object.getOwnPropertyNames(window).forEach(name => {
+                    try {
+                        if (!/^[A-Za-z_$][\w$]*$/.test(name)) return;
+                        const fn = window[name];
+                        if (typeof fn !== 'function') return;
+                        const source = Function.prototype.toString.call(fn);
+                        if (!source || !containsAllPageId(source)) return;
+                        window[name] = new Function('return (' + rewriteSource(source) + ');')();
+                    } catch (e) {}
+                });
+            };
+            if (document.readyState !== 'loading') rewriteGlobalAllPageId();
+            ['DOMContentLoaded', 'load'].forEach(evt => window.addEventListener(evt, rewriteGlobalAllPageId, { once: true }));
+            [1500, 4000].forEach(delay => setTimeout(rewriteGlobalAllPageId, delay));
             const nativeOpen = XMLHttpRequest.prototype.open;
             const nativeSend = XMLHttpRequest.prototype.send;
             const nativeFetch = window.fetch;
